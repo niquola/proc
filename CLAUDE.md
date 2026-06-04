@@ -83,6 +83,26 @@ type Session = { req?: Request; params?: Record<string,string>; kind?: string; [
 
 `ctx_ns.d.ts` — автогенерируемый, не редактировать руками.
 
+## Работа с типами
+
+Четыре уровня:
+
+1. **Объявление**: `$type_Name.ts` с `export type Name = {...}`. В корне `src/` → глобальный тип (`Context`, `Session`); в модуле → `types.<module>.<Name>` (тоже глобально, без импортов):
+```ts
+// src/notes/$type_Note.ts
+export type Note = { id: number; text: string; at: string };
+// в любой функции:
+const note: types.notes.Note = ...;
+```
+2. **Генерация** (`ctx.genTypes({})`): сканирует проект → пишет `src/ctx_ns.d.ts` — typed `FnsRegistry`/`RootFns` (каждая fn как `Injected<typeof import(...)>` — без ctx/session, как реальный вызов) + namespace `types`. Вызывается автоматически из `dev.def`/`dev.sync`/watcher — руками обычно не нужно.
+3. **IDE**: благодаря ctx_ns.d.ts полный автокомплит `ctx.fns.*` и opts-параметров в редакторе.
+4. **Проверка** (`ctx.fns.dev.typecheck({ filter? })`): `tsc --noEmit` из REPL → `{ ok, errors: ["file(line,col): error TS..."] }`. **Важно**: рантайм (Bun.Transpiler) типы только отрезает — `def`/`sync` ловят синтаксис, но НЕ type-ошибки. После написания типизированного кода зови typecheck:
+```sh
+bun script/repl.ts 'await ctx.fns.dev.def({...}); ctx.fns.dev.typecheck({ filter: "notes/" })'
+```
+
+Ограничение: код, выполняемый в REPL-буфере, не typecheck-ается вовсе (только транспилируется). Типы проверяются только у кода в файлах.
+
 ## HTTP (src/http/)
 
 - `match.ts` — матчер путей: точное совпадение, потом по-сегментно с `:param` (params попадают в `(req as any).params`)

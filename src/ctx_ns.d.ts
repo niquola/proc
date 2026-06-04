@@ -10,6 +10,7 @@ declare global {
         dev: {
         def: Injected<typeof import("./dev/def").default>;
         sync: Injected<typeof import("./dev/sync").default>;
+        typecheck: Injected<typeof import("./dev/typecheck").default>;
         watch: Injected<typeof import("./dev/watch").default>;
         };
         events: {
