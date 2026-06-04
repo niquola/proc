@@ -1,7 +1,7 @@
 // GET / — home page: list registered functions and routes.
-export default async function (ctx: Context, _session: any, _req: Request) {
+export default async function (ctx: Context, _session: Session, _opts: { req: Request }) {
     const fnRows: string[] = [];
-    walk(ctx.fns, [], fnRows);
+    walk((ctx.state as any).registry, [], fnRows);
     const routeRows = Object.entries(ctx.routes).flatMap(([path, methods]) =>
         Object.keys(methods).map(m => `<tr><td class="pr-4 font-mono text-xs">${m}</td><td class="font-mono text-xs">${path}</td></tr>`));
     return {

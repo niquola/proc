@@ -1,10 +1,8 @@
 // Run TypeScript / JavaScript inside the server process.
 // Contract — predictable, Jupyter-style:
 //   - Code is the body of `async () => { CODE }`.
-//   - TypeScript with type annotations is supported (transpiled before exec).
-//   - Output is collected from `console.log(...)`, `console.error(...)`, and
-//     `print(...)` calls. Each call adds one line to the output buffer.
-//     Objects are pretty-printed via `Bun.inspect`; strings stay verbatim.
+//   - In scope: `ctx` (request-scoped, with session), `session`, `console`
+//     (captured), `print`. Calls like ctx.fns.x.y({...}) inject ctx/session.
 //   - The last expression statement is returned as a JavaScript value.
 //   - Errors propagate as exceptions.
 const TS_TRANSPILER = new Bun.Transpiler({ loader: 'ts' });
@@ -20,6 +18,7 @@ function formatArg(a: any): string {
 
 export default async function (
     ctx: Context,
+    session: Session | null,
     opts: { code: string; bindings?: Record<string, any> },
 ): Promise<EvalResult> {
     const code = opts.code;
@@ -37,6 +36,10 @@ export default async function (
         error: log,
     };
 
+    // Eval ctx: inherits the caller's ctx; the session flows through.
+    const rctx: Context = Object.create(ctx);
+    (rctx as any).session = session ?? ctx.session ?? { kind: 'repl' };
+
     // Bun.Transpiler accepts JS as a subset of TS, so always transpile.
     let js: string;
     try {
@@ -47,8 +50,8 @@ ${withLastExpressionReturn(code)}
         throw new SyntaxError('eval: parse error: ' + (e?.message ?? String(e)));
     }
 
-    const names = ['ctx', 'console', 'print', ...Object.keys(bindings)];
-    const values: any[] = [ctx, consoleProxy, log, ...Object.values(bindings)];
+    const names = ['ctx', 'session', 'console', 'print', ...Object.keys(bindings)];
+    const values: any[] = [rctx, (rctx as any).session, consoleProxy, log, ...Object.values(bindings)];
 
     const fn = new Function(...names, `${js}\nreturn __repl()`);
     const result = await fn(...values);

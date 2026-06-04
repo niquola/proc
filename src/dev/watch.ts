@@ -1,16 +1,19 @@
-// File watcher: save a file → it's live. The fastest possible dev loop —
-// reload stops being a step at all. classify() decides what to do per file:
+// File watcher (opt-in: WATCH=1): save a file → it's live. For editor-driven
+// workflows; the agent's primary path is dev.def / dev.sync (synchronous).
+// classify() decides what to do per file:
 //   fn     → hot-load into ctx.fns (+ genTypes)
 //   route  → http.loadRoutes
 //   type   → genTypes
-// Errors (syntax etc.) are logged, old version keeps running.
+// Errors (syntax etc.) are logged + recorded on the error board, old version
+// keeps running.
 import { watch } from "node:fs";
+import { defineRootFn } from "../loadFns";
 
-export default async function (ctx: Context) {
+export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
     const st = ctx.state as any;
     if (st.watcher) return { watching: 'already' };
 
-    const roots = await ctx.fns.project.roots(ctx);
+    const roots = await ctx.fns.project.roots({});
     const pending = new Set<string>();
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -40,7 +43,7 @@ export default async function (ctx: Context) {
         const errors: Map<string, string> = ((ctx.state as any).dev ??= { errors: new Map() }).errors;
 
         for (const rel of files) {
-            const entry = ctx.fns.project.classify(rel);
+            const entry = ctx.fns.project.classify({ rel });
             if (entry.kind === 'skip') continue;
             const exists = await Bun.file(roots[0]!.dir + '/' + rel).exists();
             if (!exists) { errors.delete(rel); needTypes = true; continue; } // deleted: types only, fn stays in memory
@@ -49,11 +52,11 @@ export default async function (ctx: Context) {
                     if (entry.moduleDir === '.') {
                         const m = await import(roots[0]!.dir + '/' + rel + `?t=${Date.now()}`);
                         if (typeof m.default === 'function') {
-                            (ctx as any)[entry.runtimeName] = m.default;
+                            defineRootFn(ctx, entry.runtimeName, m.default);
                             console.log(`[watch] ctx.${entry.runtimeName}  ←  ${rel}`);
                         }
                     } else {
-                        await ctx.fns.repl.load(ctx, { name: entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName });
+                        await ctx.fns.repl.load({ name: entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName });
                     }
                     needTypes = true;
                     needReload = true;
@@ -71,9 +74,9 @@ export default async function (ctx: Context) {
         }
 
         try {
-            if (needRoutes) await ctx.fns.http.loadRoutes(ctx);
-            if (needTypes) await ctx.genTypes(ctx);
-            if (needReload) ctx.fns.events.reload(ctx);
+            if (needRoutes) await ctx.fns.http.loadRoutes({});
+            if (needTypes) await ctx.genTypes({});
+            if (needReload) ctx.fns.events.reload({});
         } catch (e: any) {
             console.error(`[watch] post: ${e?.message ?? e}`);
         }

@@ -1,10 +1,10 @@
 // Define a function/route synchronously: write file + load + genTypes in one
 // call. Errors are immediate (not a watcher race): broken code → this throws,
 // nothing half-registered. The agent's primary way to add code:
-//   await ctx.fns.dev.def(ctx, { name: "math.fib", code: "export default ..." })
-//   await ctx.fns.dev.def(ctx, { rel: "math/$route__GET.ts", code: "..." })
-export default async function (ctx: Context, opts: { name?: string; rel?: string; code: string }) {
-    const roots = await ctx.fns.project.roots(ctx);
+//   await ctx.fns.dev.def({ name: "math.fib", code: "export default ..." })
+//   await ctx.fns.dev.def({ rel: "math/$route__GET.ts", code: "..." })
+export default async function (ctx: Context, _session: Session | null, opts: { name?: string; rel?: string; code: string }) {
+    const roots = await ctx.fns.project.roots({});
     let rel = opts.rel;
     if (!rel && opts.name) {
         const segs = opts.name.split('.');
@@ -14,7 +14,7 @@ export default async function (ctx: Context, opts: { name?: string; rel?: string
     }
     if (!rel) throw new Error('need opts.name ("module.fn") or opts.rel ("module/file.ts")');
 
-    const entry = ctx.fns.project.classify(rel);
+    const entry = ctx.fns.project.classify({ rel });
     if (entry.kind === 'skip') throw new Error(`${rel} would be skipped by scanner: ${entry.reason}`);
 
     // Validate before touching disk: parse error → throw, no file written.
@@ -26,11 +26,11 @@ export default async function (ctx: Context, opts: { name?: string; rel?: string
 
     try {
         if (entry.kind === 'fn') {
-            await ctx.fns.repl.load(ctx, { name: entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName });
+            await ctx.fns.repl.load({ name: entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName });
         } else if (entry.kind === 'route' || entry.kind === 'script') {
-            await ctx.fns.http.loadRoutes(ctx);
+            await ctx.fns.http.loadRoutes({});
         }
-        await ctx.genTypes(ctx);
+        await ctx.genTypes({});
     } catch (e: any) {
         throw new Error(`src/${rel} written but failed to load: ${e?.message ?? e}`);
     }

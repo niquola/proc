@@ -9,7 +9,8 @@ export type ProjectEntry =
     | { kind: "script"; rel: string; moduleDir: string; fileName: string; routePath: string }
     | { kind: "skip"; rel: string; moduleDir: string; fileName: string; reason: string };
 
-export default function (rel: string): ProjectEntry {
+export default function (_ctx: Context, _session: Session | null, opts: { rel: string }): ProjectEntry {
+    const rel = opts.rel;
     const moduleDir = dirname(rel);
     const fileName = basename(rel);
 

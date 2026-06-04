@@ -11,17 +11,19 @@ function isIgnoredPath(rel: string): boolean {
 
 export type ScanEntry = ProjectEntry & { root: string; rootDir: string; abs: string };
 
-export default async function (ctx: Context): Promise<ScanEntry[]> {
-    // ctx.fns.project.roots may not be loaded yet on the first bootstrap pass
-    // (loadFns calls scan to populate ctx.fns) — fall back to a direct import.
-    const rootsFn = ctx.fns.project?.roots ?? (await import("./roots?t=" + Date.now())).default;
-    const roots = await rootsFn(ctx);
+export default async function (ctx: Context, session: Session | null, _opts?: {}): Promise<ScanEntry[]> {
+    // ctx.fns.project.roots may not be registered yet on the first bootstrap
+    // pass (loadFns calls scan to populate the registry) — fall back to a
+    // direct import (raw call, explicit args).
+    const roots = ctx.fns.project?.roots
+        ? await ctx.fns.project.roots({})
+        : await (await import("./roots?t=" + Date.now())).default(ctx, session, {});
     const entries: ScanEntry[] = [];
     for (const root of roots) {
         const glob = new Glob('**/*');
         for await (const rel of glob.scan(root.dir)) {
             if (isIgnoredPath(rel)) continue;
-            const meta = classify(rel);
+            const meta = classify(ctx, session, { rel });
             entries.push({ ...meta, root: root.name, rootDir: root.dir, abs: resolve(root.dir, rel) });
         }
     }

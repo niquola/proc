@@ -13,23 +13,44 @@ bun script/repl.ts '<code>' # выполнить код в живом проце
 
 Порт работающего сервера пишется в `.runtime/port` — `script/repl.ts` находит сервер по нему.
 
-## Ключевая идея: Context
+## Ключевая идея: единая сигнатура + implicit-инжекция
 
-Всё состояние и все функции живут на одном объекте `ctx`, который передаётся первым аргументом в каждую функцию:
+**Каждая** функция проекта объявляется с одной и той же сигнатурой:
+
+```ts
+export default async function (ctx: Context, session: Session | null, opts: {...}) { ... }
+```
+
+а **вызывается** через `ctx.fns.*` только с opts — `ctx` и `session` инжектятся автоматически:
+
+```ts
+ctx.fns.notes.add({ text: "hi" })      // → rawAdd(ctx, ctx.session, { text: "hi" })
+ctx.genTypes({})                        // корневые функции — так же
+```
+
+Механика (src/$main.ts `makeCtx`):
+- сырые функции лежат в дереве `ctx.state.registry`
+- `ctx.fns` — getter, возвращающий Proxy: доступ к функции даёт обёртку `(opts) => raw(ctx, ctx.session, opts)`; getter использует `this`, поэтому инжектится **тот** ctx, через который обратились
+- корневые `$name.ts` — инжектящие getter-свойства прямо на ctx (`defineRootFn` в loadFns.ts)
+- на каждый HTTP-запрос: `rctx = Object.create(rootCtx)` + `rctx.session = { kind:'http', req, params, url }` → всё, что хендлер зовёт через `rctx.fns.*`, получает эту сессию **по всей глубине цепочки** без ручной передачи
+- REPL так же: `session.kind === 'http'` (запрос POST /repl) и далее по цепочке
 
 ```ts
 // src/$type_Context.ts
 type Context = RootFns & {
     env: Record<string, string | undefined>;  // env vars
-    state: Record<string, any>;               // runtime-синглтоны (server, events subs, ...)
-    routes: Record<string, Record<string, Function>>; // HTTP-роуты: path → method → handler
-    fns: FnsRegistry;                          // все функции проекта
+    state: Record<string, any>;               // registry, runtime-синглтоны
+    routes: Record<string, Record<string, Function>>; // path → method → handler
+    session: Session | null;                  // текущая сессия (null на root ctx)
+    fns: FnsRegistry;                          // инжектящий Proxy над state.registry
 };
+// src/$type_Session.ts
+type Session = { req?: Request; params?: Record<string,string>; kind?: string; [k: string]: any };
 ```
 
-Сигнатура любой функции: `(ctx: Context, opts: {...}) => Promise<...>`. Вызов: `ctx.fns.<module>.<name>(ctx, opts)`.
+Сигнатура HTTP-хендлера — та же: `(ctx, session, opts: { req, params })`. Сервер зовёт его явно с request-ctx; `session.req`/`session.params` дублируются в opts для удобства.
 
-`Context`, `FnsRegistry`, `RootFns` — глобальные типы (см. генерацию типов ниже), импортировать их не нужно.
+`Context`, `Session`, `FnsRegistry`, `RootFns` — глобальные типы, импортировать не нужно. Внутри функции вызывай соседей через `ctx.fns.x.y({...})` — session не передавай, она течёт сама. Явно передавать сырые аргументы нужно только при прямом импорте (bootstrap в loadFns/scan).
 
 ## Конвенции имён файлов (src/project/classify.ts)
 
@@ -47,27 +68,28 @@ type Context = RootFns & {
 - `src/$route__GET.ts` → `GET /`
 - `src/todo/$route_$id_edit_GET.ts` → `GET /todo/:id/edit`
 
-Каждый файл-функция — это `export default async function (ctx, opts) {...}`. Один файл = одна функция. Никаких side-effect-импортов.
+Каждый файл-функция — это `export default async function (ctx: Context, session: Session | null, opts) {...}`. Один файл = одна функция. Никаких side-effect-импортов.
 
 Директории `_runtime`, `_test_*`, `_tmp_*`, `tmp_*` игнорируются сканером.
 
 ## Ядро (boot-последовательность, src/$main.ts)
 
-1. `loadFns(ctx)` — `project/scan` обходит `src/` глобом, `classify` парсит имена, все `kind: fn` импортируются и вешаются на `ctx.fns` (src/loadFns.ts)
-2. `ctx.genTypes(ctx)` — регенерирует `src/ctx_ns.d.ts`: typed `FnsRegistry`/`RootFns` из `typeof import(...)` — полный автокомплит для `ctx.fns.*` (src/genTypes.ts)
-3. `ctx.fns.http.loadRoutes(ctx)` — регистрирует `$route_*` и `$script_*` в `ctx.routes`
-4. `ctx.fns.http.start(ctx)` — `Bun.serve`, пишет порт в `.runtime/port`, лог запросов в `.runtime/http.log`
-5. `ctx.fns.dev.watch(ctx)` — file-watcher на `src/` (только dev, см. ниже)
+1. `makeCtx()` ($main.ts) — ctx с `state.registry` и инжектящим Proxy-getter `fns`
+2. `loadFns` — `project/scan` обходит `src/` глобом, `classify` парсит имена, все `kind: fn` кладутся в `ctx.state.registry` (корневые — getter-ами на ctx)
+3. `ctx.genTypes({})` — регенерирует `src/ctx_ns.d.ts`: `FnsRegistry`/`RootFns`, каждая запись обёрнута в `Injected<typeof import(...).default>` — тип без (ctx, session), как и реальный вызов
+4. `ctx.fns.http.loadRoutes({})` — регистрирует `$route_*` и `$script_*` в `ctx.routes`
+5. `ctx.fns.http.start({})` — `Bun.serve`, пишет порт в `.runtime/port`, лог запросов в `.runtime/http.log`
+6. `ctx.fns.dev.watch({})` — file-watcher на `src/` (opt-in `WATCH=1`, см. ниже)
 
 `ctx_ns.d.ts` — автогенерируемый, не редактировать руками.
 
 ## HTTP (src/http/)
 
 - `match.ts` — матчер путей: точное совпадение, потом по-сегментно с `:param` (params попадают в `(req as any).params`)
-- Сигнатура хендлера: `(ctx, _session, req: Request) => ...`
+- Сигнатура хендлера: `(ctx, session, opts: { req, params }) => ...`
 - Автообёртка ответа (http/$start.ts → toResponse):
   - `Response` → как есть
-  - `string` → HTML через `ctx.layout(ctx, { main })`
+  - `string` → HTML через `ctx.layout({ main })`
   - `{ main, title?, status? }` → HTML через layout
   - всё остальное → JSON
 - `$layout.ts` — HTML-shell (Tailwind CDN + htmx + `/events/client.js`)
@@ -76,9 +98,9 @@ type Context = RootFns & {
 
 Jupyter-style eval внутри живого процесса сервера:
 
-- `eval.ts` — код = тело `async () => {...}`; TS транспилируется `Bun.Transpiler`; в скоупе: `ctx`, `console` (перехвачен в буфер), `print`. **Последнее выражение возвращается как значение** (`withLastExpressionReturn`). Результат: `{ output, return }`
+- `eval.ts` — код = тело `async () => {...}`; TS транспилируется `Bun.Transpiler`; в скоупе: `ctx` (request-scoped, с сессией), `session`, `console` (перехвачен в буфер), `print`. **Последнее выражение возвращается как значение** (`withLastExpressionReturn`). Результат: `{ output, return }`
 - `$route__POST.ts` — `POST /repl`, body = код. **Только loopback**; `NODE_ENV=production` → 403
-- `load.ts` — hot-reload: `ctx.fns.repl.load(ctx, { name: "module.fn" })` (одна функция) или `{ name: "module" }` (весь модуль). Реимпорт с cache-bust `?t=Date.now()`, замена в `ctx.fns` на месте
+- `load.ts` — hot-reload: `ctx.fns.repl.load({ name: "module.fn" })` (одна функция) или `{ name: "module" }` (весь модуль). Реимпорт с cache-bust `?t=Date.now()`, замена в `ctx.fns` на месте
 - `script/repl.ts` — CLI-клиент: аргумент / `-f file` / stdin
 
 ## dev.def — главный способ добавлять код (src/dev/def.ts)
@@ -86,15 +108,15 @@ Jupyter-style eval внутри живого процесса сервера:
 Синхронно: записать файл + загрузить + genTypes **одним вызовом**. Ошибка кода → немедленный throw, битый файл даже не пишется на диск (валидация транспилятором до записи). Никаких гонок и sleep:
 
 ```ts
-await ctx.fns.dev.def(ctx, { name: "math.fib", code: "export default async function (ctx: Context, opts: {n: number}) {...}" });
-await ctx.fns.dev.def(ctx, { rel: "math/$route__GET.ts", code: "..." });  // роут/скрипт — по rel-пути
+await ctx.fns.dev.def({ name: "math.fib", code: "export default async function (ctx: Context, session: Session | null, opts: {n: number}) {...}" });
+await ctx.fns.dev.def({ rel: "math/$route__GET.ts", code: "..." });  // роут/скрипт — по rel-пути
 ```
 
 Паттерн для агента — **def + проверка в одном REPL round-trip**:
 ```sh
 bun script/repl.ts -f /dev/stdin <<'EOF'
-await ctx.fns.dev.def(ctx, { name: "math.fib", code: `...` });
-ctx.fns.math.fib(ctx, { n: 30 })
+await ctx.fns.dev.def({ name: "math.fib", code: `...` });
+ctx.fns.math.fib({ n: 30 })
 EOF
 ```
 Ответ: либо `return` с результатом проверки (всё загрузилось), либо `error` (ничего не зарегистрировано). Третьего нет.
@@ -118,7 +140,7 @@ EOF
 Типовой dev-цикл (и для агента тоже):
 ```sh
 # создал/поправил любой файл в src/ → watcher всё сделал; сразу проверяем:
-bun script/repl.ts 'ctx.fns.foo.bar(ctx, {...})'
+bun script/repl.ts 'ctx.fns.foo.bar({...})'
 ```
 
 ## Events / SSE (src/events/)
@@ -134,9 +156,9 @@ In-process pub/sub + поток в браузер:
 
 Скаффолдинг с немедленной регистрацией (без рестарта):
 
-- `fn.ts` — `ctx.fns.generate.fn(ctx, { module, name, body? })` → пишет `src/<module>/<name>.ts`, hot-load, genTypes
-- `route.ts` — `ctx.fns.generate.route(ctx, { module, path?, method, body? })` → пишет `$route_*`, loadRoutes, broadcast reload
-- `module.ts` — `ctx.fns.generate.module(ctx, { name })` → fn `list` + index-роут
+- `fn.ts` — `ctx.fns.generate.fn({ module, name, body? })` → пишет `src/<module>/<name>.ts`, hot-load, genTypes
+- `route.ts` — `ctx.fns.generate.route({ module, path?, method, body? })` → пишет `$route_*`, loadRoutes, broadcast reload
+- `module.ts` — `ctx.fns.generate.module({ name })` → fn `list` + index-роут
 
 ## Как добавлять код (workflow для агента)
 
@@ -145,7 +167,7 @@ In-process pub/sub + поток в браузер:
 **1. Существенный код (есть Write-инструмент)** — предпочтительно:
 ```sh
 # Write src/<module>/<file>.ts (обычный файл, без экранирования), затем:
-bun script/repl.ts 'await ctx.fns.dev.sync(ctx, { rel: "<module>/<file>.ts" }); ctx.fns.<module>.<fn>(ctx, {...})'
+bun script/repl.ts 'await ctx.fns.dev.sync({ rel: "<module>/<file>.ts" }); ctx.fns.<module>.<fn>({...})'
 ```
 `dev.sync(rel)` сам понимает по classify, что это (fn → repl.load + genTypes, роут → loadRoutes, тип → genTypes). Плюсы: никакого экранирования, стек ошибок указывает в реальный файл:строку.
 

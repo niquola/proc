@@ -1,6 +1,6 @@
 // Minimal HTML shell. Route handlers return a string (or { main, title }) and
 // http/$start.ts wraps it with this layout automatically.
-export default function (ctx: Context, opts: { title?: string; main: string; headExtra?: string }, _req?: Request) {
+export default function (_ctx: Context, _session: Session | null, opts: { title?: string; main: string; headExtra?: string }) {
     const pageTitle = opts.title ? `${opts.title} · procs` : "procs";
     return `<!doctype html>
 <html>

@@ -1,6 +1,6 @@
-export default async function (ctx: Context) {
+export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
     ctx.routes = ctx.routes || {};
-    const entries = await ctx.fns.project.scan(ctx);
+    const entries = await ctx.fns.project.scan({});
     for (const entry of entries) {
         if (entry.kind === 'route') {
             const mod = await import(entry.abs + `?t=${Date.now()}`);

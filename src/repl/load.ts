@@ -1,7 +1,7 @@
 // Hot-reload functions from disk into the running process.
-//   ctx.fns.repl.load(ctx, { name: "project.scan" })  → reload one fn
-//   ctx.fns.repl.load(ctx, { name: "project" })       → reload whole module
-export default async function (ctx: Context, opts: { name: string }) {
+//   ctx.fns.repl.load({ name: "project.scan" })  → reload one fn
+//   ctx.fns.repl.load({ name: "project" })       → reload whole module
+export default async function (ctx: Context, _session: Session | null, opts: { name: string }) {
     const target = opts.name;
     if (target.includes('.')) {
         const segs = target.split('.');
@@ -11,7 +11,7 @@ export default async function (ctx: Context, opts: { name: string }) {
         return { reloaded: target };
     }
 
-    const entries = await ctx.fns.project.scan(ctx);
+    const entries = await ctx.fns.project.scan({});
     const loaded: string[] = [];
     for (const entry of entries) {
         if (entry.kind !== 'fn') continue;
@@ -24,15 +24,16 @@ export default async function (ctx: Context, opts: { name: string }) {
 
 async function loadFile(ctx: Context, modPath: string, fnName: string) {
     const candidates = [modPath + '/' + fnName + '.ts', modPath + '/$' + fnName + '.ts'];
-    for (const root of await ctx.fns.project.roots(ctx)) {
+    for (const root of await ctx.fns.project.roots({})) {
         for (const rel of candidates) {
             const abs = root.dir + '/' + rel;
             if (!(await Bun.file(abs).exists())) continue;
             const m = await import(abs + `?t=${Date.now()}`);
             const fn = m.default;
             if (typeof fn !== 'function') throw new Error(`${rel}: no default function export`);
+            // Raw fns live in ctx.state.registry (ctx.fns is the injecting Proxy).
             const segs = modPath.split('/');
-            let tgt: any = ctx.fns;
+            let tgt: any = (ctx.state as any).registry;
             for (const seg of segs) {
                 tgt[seg] = tgt[seg] || {};
                 tgt = tgt[seg];

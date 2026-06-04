@@ -1,8 +1,10 @@
 export default function (
-    routes: Record<string, Record<string, Function>>,
-    method: string,
-    pathname: string,
+    ctx: Context,
+    _session: Session | null,
+    opts: { method: string; pathname: string },
 ): { handler: Function; params: Record<string, string> } | null {
+    const { method, pathname } = opts;
+    const routes = ctx.routes;
     const exact = routes[pathname];
     if (exact && exact[method]) return { handler: exact[method], params: {} };
 

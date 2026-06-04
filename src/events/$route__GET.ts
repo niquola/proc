@@ -1,6 +1,6 @@
 // GET /events — long-lived Server-Sent Events stream.
 // Every page opens one; server pushes reload / custom events.
-export default async function (ctx: Context, _session: any, req: Request) {
+export default async function (ctx: Context, _session: Session, opts: { req: Request }) {
     const stream = new ReadableStream({
         start(controller) {
             const enc = new TextEncoder();
@@ -9,11 +9,11 @@ export default async function (ctx: Context, _session: any, req: Request) {
                 catch { unsub(); }
             };
             send({ type: "hello", serverStart: (ctx.state as any).serverStart });
-            const unsub = ctx.fns.events.subscribe(ctx, { handler: send });
+            const unsub = ctx.fns.events.subscribe({ handler: send });
             const keepalive = setInterval(() => {
                 try { controller.enqueue(enc.encode(`: ping\n\n`)); } catch { /* closed */ }
             }, 25_000);
-            req.signal.addEventListener("abort", () => {
+            opts.req.signal.addEventListener("abort", () => {
                 clearInterval(keepalive);
                 unsub();
                 try { controller.close(); } catch { /* already closed */ }
