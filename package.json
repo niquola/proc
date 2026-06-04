@@ -1,0 +1,16 @@
+{
+  "name": "procs",
+  "module": "src/$main.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "bun src/$main.ts",
+    "repl": "bun script/repl.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
