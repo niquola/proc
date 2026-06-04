@@ -108,7 +108,7 @@ The full framework guide (including the agent workflow) lives in [CLAUDE.md](CLA
 
 ## Origins
 
-Extracted as a minimal core from two larger experiments ([hyper-code](https://github.com/niquola) lineage): the registry/REPL/typegen machinery without any domain modules.
+Extracted as a minimal core from two larger experiments: the registry/REPL/typegen machinery without any domain modules.
 
 ## License
 
