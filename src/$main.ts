@@ -33,7 +33,7 @@ export default async function main() {
     await ctx.genTypes({});
     await ctx.fns.http.loadRoutes({});
     await ctx.fns.http.start({});
-    if (ctx.env.WATCH) await ctx.fns.dev.watch({}); // opt-in: WATCH=1 (для агента основной путь — ctx.fns.dev.def)
+    if (ctx.env.WATCH) await ctx.fns.dev.watch({}); // opt-in: WATCH=1 (the agent's primary path is ctx.fns.dev.def)
     return ctx;
 }
 

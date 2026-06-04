@@ -1,206 +1,206 @@
 # procs — file-based FP framework on Bun
 
-Минимальный процедурный (FP-style) фреймворк: функции на диске → реестр `ctx.fns` в рантайме. Имя файла определяет, чем файл является (функция, роут, тип, скрипт). Никаких импортов между модулями — всё вызывается через `ctx`. Живой сервер правится через REPL и hot-reload без рестарта.
+A minimal procedural (FP-style) framework: functions on disk → `ctx.fns` registry at runtime. The file name determines what a file is (function, route, type, script). No imports between modules — everything is called through `ctx`. The live server is modified through the REPL and hot-reload, never restarted.
 
-Извлечён из `~/workspaces-template` и `~/hyper-code2` (ядро: registry + web + REPL + генераторы, без доменных модулей).
+Extracted from `~/workspaces-template` and `~/hyper-code2` (core only: registry + web + REPL + generators, no domain modules).
 
-## Запуск
+## Running
 
 ```sh
-bun src/$main.ts            # или: bun start; порт из env PORT (default 3000)
-bun script/repl.ts '<code>' # выполнить код в живом процессе сервера
+bun src/$main.ts            # or: bun start; port from env PORT (default 3000)
+bun script/repl.ts '<code>' # eval code inside the live server process
 ```
 
-Порт работающего сервера пишется в `.runtime/port` — `script/repl.ts` находит сервер по нему.
+The running server's port is written to `.runtime/port` — `script/repl.ts` finds the server through it.
 
-## Ключевая идея: единая сигнатура + implicit-инжекция
+## Core idea: unified signature + implicit injection
 
-**Каждая** функция проекта объявляется с одной и той же сигнатурой:
+**Every** project function is declared with the same signature:
 
 ```ts
 export default async function (ctx: Context, session: Session | null, opts: {...}) { ... }
 ```
 
-а **вызывается** через `ctx.fns.*` только с opts — `ctx` и `session` инжектятся автоматически:
+and is **called** through `ctx.fns.*` with opts only — `ctx` and `session` are injected automatically:
 
 ```ts
 ctx.fns.notes.add({ text: "hi" })      // → rawAdd(ctx, ctx.session, { text: "hi" })
-ctx.genTypes({})                        // корневые функции — так же
+ctx.genTypes({})                        // root functions work the same way
 ```
 
-Механика (src/$main.ts `makeCtx`):
-- сырые функции лежат в дереве `ctx.state.registry`
-- `ctx.fns` — getter, возвращающий Proxy: доступ к функции даёт обёртку `(opts) => raw(ctx, ctx.session, opts)`; getter использует `this`, поэтому инжектится **тот** ctx, через который обратились
-- корневые `$name.ts` — инжектящие getter-свойства прямо на ctx (`defineRootFn` в loadFns.ts)
-- на каждый HTTP-запрос: `rctx = Object.create(rootCtx)` + `rctx.session = { kind:'http', req, params, url }` → всё, что хендлер зовёт через `rctx.fns.*`, получает эту сессию **по всей глубине цепочки** без ручной передачи
-- REPL так же: `session.kind === 'http'` (запрос POST /repl) и далее по цепочке
+Mechanics (src/$main.ts `makeCtx`):
+- raw functions live in the `ctx.state.registry` tree
+- `ctx.fns` is a getter returning a Proxy: accessing a function yields a wrapper `(opts) => raw(ctx, ctx.session, opts)`; the getter uses `this`, so the injected ctx is **the one you accessed through**
+- root `$name.ts` functions are injecting getter properties directly on ctx (`defineRootFn` in loadFns.ts)
+- per HTTP request: `rctx = Object.create(rootCtx)` + `rctx.session = { kind:'http', req, params, url }` → everything the handler calls via `rctx.fns.*` gets this session **through the whole call chain** with no manual threading
+- REPL works the same: `session.kind === 'http'` (the POST /repl request) and onward down the chain
 
 ```ts
 // src/$type_Context.ts
 type Context = RootFns & {
     env: Record<string, string | undefined>;  // env vars
-    state: Record<string, any>;               // registry, runtime-синглтоны
+    state: Record<string, any>;               // registry, runtime singletons
     routes: Record<string, Record<string, Function>>; // path → method → handler
-    session: Session | null;                  // текущая сессия (null на root ctx)
-    fns: FnsRegistry;                          // инжектящий Proxy над state.registry
+    session: Session | null;                  // current session (null on root ctx)
+    fns: FnsRegistry;                          // injecting Proxy over state.registry
 };
 // src/$type_Session.ts
 type Session = { req?: Request; params?: Record<string,string>; kind?: string; [k: string]: any };
 ```
 
-Сигнатура HTTP-хендлера — та же: `(ctx, session, opts: { req, params })`. Сервер зовёт его явно с request-ctx; `session.req`/`session.params` дублируются в opts для удобства.
+HTTP handlers share the signature: `(ctx, session, opts: { req, params })`. The server calls them explicitly with a request-ctx; `session.req`/`session.params` are duplicated in opts for convenience.
 
-`Context`, `Session`, `FnsRegistry`, `RootFns` — глобальные типы, импортировать не нужно. Внутри функции вызывай соседей через `ctx.fns.x.y({...})` — session не передавай, она течёт сама. Явно передавать сырые аргументы нужно только при прямом импорте (bootstrap в loadFns/scan).
+`Context`, `Session`, `FnsRegistry`, `RootFns` are global types — no imports needed. Inside a function, call neighbors via `ctx.fns.x.y({...})` — don't pass the session, it flows by itself. Explicit raw arguments are only needed on direct imports (bootstrap in loadFns/scan).
 
-## Конвенции имён файлов (src/project/classify.ts)
+## File-name conventions (src/project/classify.ts)
 
-| Файл | Что это | Регистрация |
+| File | What it is | Registered as |
 |---|---|---|
-| `module/name.ts` | функция | `ctx.fns.module.name` |
-| `$name.ts` (в корне src/) | корневая функция | `ctx.name` (напр. `ctx.genTypes`, `ctx.layout`) |
-| `$type_Name.ts` | TypeScript-тип | глобально `Name` (корень) или `types.module.Name` |
-| `module/$route_<path>_<METHOD>.ts` | HTTP-роут | `METHOD /module/<path>` |
-| `module/$script_name.js\|.css` | браузерный ассет | `GET /module/name.js` (бандлится Bun.build при запросе) |
-| `*.test.ts`, `*.entry.ts`, `*.d.ts`, `$main.ts` | пропускаются | — |
+| `module/name.ts` | function | `ctx.fns.module.name` |
+| `$name.ts` (in src/ root) | root function | `ctx.name` (e.g. `ctx.genTypes`, `ctx.layout`) |
+| `$type_Name.ts` | TypeScript type | global `Name` (root) or `types.module.Name` |
+| `module/$route_<path>_<METHOD>.ts` | HTTP route | `METHOD /module/<path>` |
+| `module/$script_name.js\|.css` | browser asset | `GET /module/name.js` (bundled by Bun.build on request) |
+| `*.test.ts`, `*.entry.ts`, `*.d.ts`, `$main.ts` | skipped | — |
 
-Правила путей роутов: `_` в имени → `/` в пути; `$id` → `:id` (param). Примеры:
+Route path rules: `_` in the name → `/` in the path; `$id` → `:id` (param). Examples:
 - `src/repl/$route__POST.ts` → `POST /repl`
 - `src/$route__GET.ts` → `GET /`
 - `src/todo/$route_$id_edit_GET.ts` → `GET /todo/:id/edit`
 
-Каждый файл-функция — это `export default async function (ctx: Context, session: Session | null, opts) {...}`. Один файл = одна функция. Никаких side-effect-импортов.
+Every function file is `export default async function (ctx: Context, session: Session | null, opts) {...}`. One file = one function. No side-effect imports.
 
-Директории `_runtime`, `_test_*`, `_tmp_*`, `tmp_*` игнорируются сканером.
+Directories `_runtime`, `_test_*`, `_tmp_*`, `tmp_*` are ignored by the scanner.
 
-## Ядро (boot-последовательность, src/$main.ts)
+## Core (boot sequence, src/$main.ts)
 
-1. `makeCtx()` ($main.ts) — ctx с `state.registry` и инжектящим Proxy-getter `fns`
-2. `loadFns` — `project/scan` обходит `src/` глобом, `classify` парсит имена, все `kind: fn` кладутся в `ctx.state.registry` (корневые — getter-ами на ctx)
-3. `ctx.genTypes({})` — регенерирует `src/ctx_ns.d.ts`: `FnsRegistry`/`RootFns`, каждая запись обёрнута в `Injected<typeof import(...).default>` — тип без (ctx, session), как и реальный вызов
-4. `ctx.fns.http.loadRoutes({})` — регистрирует `$route_*` и `$script_*` в `ctx.routes`
-5. `ctx.fns.http.start({})` — `Bun.serve`, пишет порт в `.runtime/port`, лог запросов в `.runtime/http.log`
-6. `ctx.fns.dev.watch({})` — file-watcher на `src/` (opt-in `WATCH=1`, см. ниже)
+1. `makeCtx()` ($main.ts) — ctx with `state.registry` and the injecting Proxy getter `fns`
+2. `loadFns` — `project/scan` globs `src/`, `classify` parses names, every `kind: fn` goes into `ctx.state.registry` (root fns as getters on ctx)
+3. `ctx.genTypes({})` — regenerates `src/ctx_ns.d.ts`: `FnsRegistry`/`RootFns`, each entry wrapped in `Injected<typeof import(...).default>` — the type without (ctx, session), matching the actual call shape
+4. `ctx.fns.http.loadRoutes({})` — registers `$route_*` and `$script_*` into `ctx.routes`
+5. `ctx.fns.http.start({})` — `Bun.serve`, writes the port to `.runtime/port`, request log to `.runtime/http.log`
+6. `ctx.fns.dev.watch({})` — file watcher on `src/` (opt-in `WATCH=1`, see below)
 
-`ctx_ns.d.ts` — автогенерируемый, не редактировать руками.
+`ctx_ns.d.ts` is auto-generated — never edit by hand.
 
-## Работа с типами
+## Working with types
 
-Четыре уровня:
+Four layers:
 
-1. **Объявление**: `$type_Name.ts` с `export type Name = {...}`. В корне `src/` → глобальный тип (`Context`, `Session`); в модуле → `types.<module>.<Name>` (тоже глобально, без импортов):
+1. **Declaration**: `$type_Name.ts` with `export type Name = {...}`. In the `src/` root → a global type (`Context`, `Session`); in a module → `types.<module>.<Name>` (also global, no imports):
 ```ts
 // src/notes/$type_Note.ts
 export type Note = { id: number; text: string; at: string };
-// в любой функции:
+// in any function:
 const note: types.notes.Note = ...;
 ```
-2. **Генерация** (`ctx.genTypes({})`): сканирует проект → пишет `src/ctx_ns.d.ts` — typed `FnsRegistry`/`RootFns` (каждая fn как `Injected<typeof import(...)>` — без ctx/session, как реальный вызов) + namespace `types`. Вызывается автоматически из `dev.def`/`dev.sync`/watcher — руками обычно не нужно.
-3. **IDE**: благодаря ctx_ns.d.ts полный автокомплит `ctx.fns.*` и opts-параметров в редакторе.
-4. **Проверка** (`ctx.fns.dev.typecheck({ filter? })`): `tsc --noEmit` из REPL → `{ ok, errors: ["file(line,col): error TS..."] }`. **Важно**: рантайм (Bun.Transpiler) типы только отрезает — `def`/`sync` ловят синтаксис, но НЕ type-ошибки. После написания типизированного кода зови typecheck:
+2. **Generation** (`ctx.genTypes({})`): scans the project → writes `src/ctx_ns.d.ts` — typed `FnsRegistry`/`RootFns` (each fn as `Injected<typeof import(...)>` — without ctx/session, matching the real call) + the `types` namespace. Called automatically by `dev.def`/`dev.sync`/watcher — rarely needed by hand.
+3. **IDE**: thanks to ctx_ns.d.ts you get full autocomplete for `ctx.fns.*` and opts parameters.
+4. **Checking** (`ctx.fns.dev.typecheck({ filter? })`): `tsc --noEmit` from the REPL → `{ ok, errors: ["file(line,col): error TS..."] }`. **Important**: the runtime (Bun.Transpiler) only STRIPS types — `def`/`sync` catch syntax errors but NOT type errors. After writing typed code, call typecheck:
 ```sh
 bun script/repl.ts 'await ctx.fns.dev.def({...}); ctx.fns.dev.typecheck({ filter: "notes/" })'
 ```
 
-Ограничение: код, выполняемый в REPL-буфере, не typecheck-ается вовсе (только транспилируется). Типы проверяются только у кода в файлах.
+Limitation: code executed in the REPL buffer is never typechecked (only transpiled). Types are checked only for code in files.
 
 ## HTTP (src/http/)
 
-- `match.ts` — матчер путей: точное совпадение, потом по-сегментно с `:param` (params попадают в `(req as any).params`)
-- Сигнатура хендлера: `(ctx, session, opts: { req, params }) => ...`
-- Автообёртка ответа (http/$start.ts → toResponse):
-  - `Response` → как есть
-  - `string` → HTML через `ctx.layout({ main })`
-  - `{ main, title?, status? }` → HTML через layout
-  - всё остальное → JSON
-- `$layout.ts` — HTML-shell (Tailwind CDN + htmx + `/events/client.js`)
+- `match.ts` — path matcher: exact match first, then segment-by-segment with `:param`
+- Handler signature: `(ctx, session, opts: { req, params }) => ...`
+- Response auto-wrapping (http/$start.ts → toResponse):
+  - `Response` → passthrough
+  - `string` → HTML via `ctx.layout({ main })`
+  - `{ main, title?, status? }` → HTML via layout
+  - anything else → JSON
+- `$layout.ts` — HTML shell (Tailwind CDN + htmx + `/events/client.js`)
 
 ## REPL (src/repl/)
 
-Jupyter-style eval внутри живого процесса сервера:
+Jupyter-style eval inside the live server process:
 
-- `eval.ts` — код = тело `async () => {...}`; TS транспилируется `Bun.Transpiler`; в скоупе: `ctx` (request-scoped, с сессией), `session`, `console` (перехвачен в буфер), `print`. **Последнее выражение возвращается как значение** (`withLastExpressionReturn`). Результат: `{ output, return }`
-- `$route__POST.ts` — `POST /repl`, body = код. **Только loopback**; `NODE_ENV=production` → 403
-- `load.ts` — hot-reload: `ctx.fns.repl.load({ name: "module.fn" })` (одна функция) или `{ name: "module" }` (весь модуль). Реимпорт с cache-bust `?t=Date.now()`, замена в `ctx.fns` на месте
-- `script/repl.ts` — CLI-клиент: аргумент / `-f file` / stdin
+- `eval.ts` — code is the body of `async () => {...}`; TS is transpiled by `Bun.Transpiler`; in scope: `ctx` (request-scoped, with session), `session`, `console` (captured into a buffer), `print`. **The last expression is returned as a value** (`withLastExpressionReturn`). Result: `{ output, return }`
+- `$route__POST.ts` — `POST /repl`, body = code. **Loopback only**; `NODE_ENV=production` → 403
+- `load.ts` — hot-reload: `ctx.fns.repl.load({ name: "module.fn" })` (one function) or `{ name: "module" }` (whole module). Re-import with cache-bust `?t=Date.now()`, replaced in place
+- `script/repl.ts` — CLI client: argument / `-f file` / stdin
 
-## dev.def — главный способ добавлять код (src/dev/def.ts)
+## dev.def — the primary way to add code (src/dev/def.ts)
 
-Синхронно: записать файл + загрузить + genTypes **одним вызовом**. Ошибка кода → немедленный throw, битый файл даже не пишется на диск (валидация транспилятором до записи). Никаких гонок и sleep:
+Synchronous: write file + load + genTypes **in one call**. Broken code → immediate throw, the broken file is not even written to disk (transpiler validation before writing). No races, no sleeps:
 
 ```ts
 await ctx.fns.dev.def({ name: "math.fib", code: "export default async function (ctx: Context, session: Session | null, opts: {n: number}) {...}" });
-await ctx.fns.dev.def({ rel: "math/$route__GET.ts", code: "..." });  // роут/скрипт — по rel-пути
+await ctx.fns.dev.def({ rel: "math/$route__GET.ts", code: "..." });  // route/script — by rel path
 ```
 
-Паттерн для агента — **def + проверка в одном REPL round-trip**:
+The agent pattern — **def + verification in one REPL round-trip**:
 ```sh
 bun script/repl.ts -f /dev/stdin <<'EOF'
 await ctx.fns.dev.def({ name: "math.fib", code: `...` });
 ctx.fns.math.fib({ n: 30 })
 EOF
 ```
-Ответ: либо `return` с результатом проверки (всё загрузилось), либо `error` (ничего не зарегистрировано). Третьего нет.
+The response is either `return` with the verification result (everything loaded) or `error` (nothing registered). There is no third state.
 
-## Watcher (src/dev/watch.ts) — opt-in, для правок в редакторе
+## Watcher (src/dev/watch.ts) — opt-in, for editor-driven changes
 
-`WATCH=1 bun src/$main.ts` — сервер следит за `src/`: **сохранил файл → он живой**. По умолчанию выключен (для агента основной путь — `dev.def`; watcher асинхронен — между записью и загрузкой есть гонка):
+`WATCH=1 bun src/$main.ts` — the server watches `src/`: **save a file → it's live**. Off by default (the agent's primary path is `dev.def`; the watcher is async — there is a race between writing and loading):
 
-- `fn` → hot-load в `ctx.fns` + genTypes + reload вкладок
-- `$route_*` / `$script_*` → loadRoutes + reload вкладок
+- `fn` → hot-load into `ctx.fns` + genTypes + tab reload
+- `$route_*` / `$script_*` → loadRoutes + tab reload
 - `$type_*` → genTypes
-- новая директория с файлами → пересканируется (FSEvents схлопывает такие события)
-- `.d.ts` игнорируется (вывод genTypes — был бы цикл)
+- a new directory with files → rescanned (FSEvents collapses such events)
+- `.d.ts` ignored (genTypes output — would loop)
 
-Семантика ошибок: битый файл (синтаксис и т.п.) → `[watch] <file>: <error>` в лог, **старая версия продолжает работать**; исправил → подхватился. Ошибка в хендлере → 500 со стеком (dev), сервер живёт. Ошибка в REPL → `{ error, stack }` в ответе.
+Error semantics: a broken file (syntax etc.) → `[watch] <file>: <error>` in the log, **the old version keeps running**; fix it → picked up. A handler error → 500 with stack (dev), the server lives. A REPL error → `{ error, stack }` in the response.
 
-**watchErrors в REPL**: пока хоть один файл не загружается watcher-ом, КАЖДЫЙ ответ `/repl` содержит поле `watchErrors: { "<rel>": "<error>" }` (доска ошибок в `ctx.state.dev.errors`; чистится при успешной загрузке/удалении файла). Защита от тихого провала при работе через watcher: функция отвечает старой версией, но `watchErrors` кричит, что новый код не загрузился.
+**watchErrors in the REPL**: while at least one watched file fails to load, EVERY `/repl` response carries `watchErrors: { "<rel>": "<error>" }` (the error board in `ctx.state.dev.errors`; cleared on successful load/file deletion). Protects against silent failure in watcher workflows: the function answers with the old version, but `watchErrors` shouts that the new code didn't load.
 
-Ручной reload (`ctx.fns.repl.load`, `ctx.fns.http.loadRoutes`) остаётся как fallback. Правка самого `dev/watch.ts`, `http/$start.ts` или `$main.ts` требует рестарта процесса (живут как запущенные замыкания).
+Manual reload (`ctx.fns.repl.load`, `ctx.fns.http.loadRoutes`) remains as a fallback. Editing `dev/watch.ts`, `http/$start.ts` or `$main.ts` itself requires a process restart (they live as running closures).
 
-Типовой dev-цикл (и для агента тоже):
+Typical dev cycle:
 ```sh
-# создал/поправил любой файл в src/ → watcher всё сделал; сразу проверяем:
+# created/edited any file in src/ → watcher did everything; verify immediately:
 bun script/repl.ts 'ctx.fns.foo.bar({...})'
 ```
 
 ## Events / SSE (src/events/)
 
-In-process pub/sub + поток в браузер:
+In-process pub/sub + a stream to the browser:
 
-- `subscribe.ts` / `emit.ts` — `Set` подписчиков в `ctx.state.events`; событие = `{ type: string, ... }`
-- `$route__GET.ts` — `GET /events`, SSE-стрим (hello c `serverStart`, keepalive ping 25s)
-- `client.js` — браузерный клиент (грузится из layout): реконнект с backoff, `type: "reload"` → `location.reload()`, рестарт сервера (по `serverStart`) → reload, остальные события → DOM `CustomEvent('hyper-events')`
-- `reload.ts` — `ctx.fns.events.reload(ctx)` перезагружает все открытые вкладки
+- `subscribe.ts` / `emit.ts` — a `Set` of subscribers in `ctx.state.events`; an event is `{ type: string, ... }`
+- `$route__GET.ts` — `GET /events`, SSE stream (hello with `serverStart`, keepalive ping 25s)
+- `client.js` — browser client (loaded by the layout): reconnect with backoff, `type: "reload"` → `location.reload()`, server restart (via `serverStart`) → reload, other events → DOM `CustomEvent('hyper-events')`
+- `reload.ts` — `ctx.fns.events.reload({})` reloads all open tabs
 
-## Генераторы (src/generate/)
+## Generators (src/generate/)
 
-Скаффолдинг с немедленной регистрацией (без рестарта):
+Scaffolding with immediate registration (no restart):
 
-- `fn.ts` — `ctx.fns.generate.fn({ module, name, body? })` → пишет `src/<module>/<name>.ts`, hot-load, genTypes
-- `route.ts` — `ctx.fns.generate.route({ module, path?, method, body? })` → пишет `$route_*`, loadRoutes, broadcast reload
-- `module.ts` — `ctx.fns.generate.module({ name })` → fn `list` + index-роут
+- `fn.ts` — `ctx.fns.generate.fn({ module, name, body? })` → writes `src/<module>/<name>.ts`, hot-load, genTypes
+- `route.ts` — `ctx.fns.generate.route({ module, path?, method, body? })` → writes `$route_*`, loadRoutes, broadcast reload
+- `module.ts` — `ctx.fns.generate.module({ name })` → a `list` fn + an index route
 
-## Как добавлять код (workflow для агента)
+## How to add code (agent workflow)
 
-Два пути, выбирай по размеру кода:
+Two paths, pick by code size:
 
-**1. Существенный код (есть Write-инструмент)** — предпочтительно:
+**1. Substantial code (Write tool available)** — preferred:
 ```sh
-# Write src/<module>/<file>.ts (обычный файл, без экранирования), затем:
+# Write src/<module>/<file>.ts (a regular file, no escaping), then:
 bun script/repl.ts 'await ctx.fns.dev.sync({ rel: "<module>/<file>.ts" }); ctx.fns.<module>.<fn>({...})'
 ```
-`dev.sync(rel)` сам понимает по classify, что это (fn → repl.load + genTypes, роут → loadRoutes, тип → genTypes). Плюсы: никакого экранирования, стек ошибок указывает в реальный файл:строку.
+`dev.sync(rel)` figures out from classify what the file is (fn → repl.load + genTypes, route → loadRoutes, type → genTypes). Pros: no escaping, error stacks point to the real file:line.
 
-**2. Маленькие функции / итерации** — `dev.def` + проверка в одном round-trip (см. секцию dev.def). Минус: внутри `code: \`...\`` приходится экранировать вложенные \` и \${ — для кода с HTML-шаблонами быстро становится больно, бери путь 1.
+**2. Small functions / iterations** — `dev.def` + verification in one round-trip (see the dev.def section). Con: inside `code: \`...\`` you must escape nested \` and \${ — for code with HTML templates this gets painful fast, use path 1.
 
-Проверено на практике: state-функции через `ctx.state` живут между вызовами; формы (`req.formData()` + `Response.redirect`) работают; `def`/`sync` можно определять через сами себя.
+Battle-tested: state functions via `ctx.state` persist between calls; forms (`req.formData()` + `Response.redirect`) work; `def`/`sync` can be defined through themselves.
 
-Правила:
-- Не импортируй функции проекта друг из друга — только вызовы через `ctx.fns`. Внешние либы и `node:`-модули импортировать можно
-- Удалил файл — функция остаётся в памяти до рестарта (но из типов уходит)
-- Правка `dev/watch.ts`, `http/$start.ts`, `$main.ts` требует рестарта процесса
-- Сервер не запущен? `bun src/$main.ts` (порт смотри/задавай через `PORT`, найдёшь в `.runtime/port`)
+Rules:
+- Don't import project functions from each other — only calls via `ctx.fns`. External libs and `node:` modules are fine to import
+- Deleted a file — the function stays in memory until restart (but leaves the types)
+- Editing `dev/watch.ts`, `http/$start.ts`, `$main.ts` requires a process restart
+- Server not running? `bun src/$main.ts` (check/set the port via `PORT`, find it in `.runtime/port`)
 
 ## Bun
 
-Рантайм — Bun (не Node): `bun <file>`, `bun test`, `bun install`, `Bun.serve`, `Bun.file`, `bun:sqlite`, `Bun.sql`, `Bun.$`. `.env` грузится автоматически. WebSocket встроен. Не использовать express/vite/jest/pg/ws — у Bun всё встроено.
+The runtime is Bun (not Node): `bun <file>`, `bun test`, `bun install`, `Bun.serve`, `Bun.file`, `bun:sqlite`, `Bun.sql`, `Bun.$`. `.env` is loaded automatically. WebSocket is built in. Don't use express/vite/jest/pg/ws — Bun has it all built in.
