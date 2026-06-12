@@ -5,7 +5,7 @@ import { resolve } from "node:path";
 
 export default async function (ctx: Context, _session: Session | null, opts: { from: string }) {
     const from = opts.from;
-    const projectRoot = resolve(import.meta.dir, "..", "..");
+    const projectRoot = ctx.fns.project.projectRoot({});
     const pkgPath = projectRoot + "/package.json";
 
     const pkg = JSON.parse(await Bun.file(pkgPath).text());

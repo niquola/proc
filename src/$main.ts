@@ -39,15 +39,23 @@ export function makeRequestCtx(base: Context, session: Session): Context {
     return c as Context;
 }
 
-export default async function main() {
+import { resolve } from "node:path";
+
+// Boot the framework for a project rooted at `root` (its src/ holds the app's
+// fns; package.json its config). proc's own core src is ALWAYS scanned too, so
+// an app gets http/repl/dev/config/lifecycle/… merged with its own code.
+// An app does:  import { boot } from "proc/$main"; await boot({ root: import.meta.dir })
+export async function boot(opts?: { root?: string }): Promise<Context> {
     const ctx = makeCtx();
+    // Default root = proc's own repo root ($main.ts lives in src/). Apps pass theirs.
+    ctx.state.root = opts?.root ?? resolve(import.meta.dir, "..");
     const { default: loadFns } = await import("./loadFns");
     await loadFns(ctx, null, {});
     const lint = await ctx.fns.dev.lint({});
     if (!lint.ok) console.error(`[boot] ${lint.errors.length} namespace lint error(s) — fix before building (see [lint] above)`);
     await ctx.genTypes({});
     await ctx.fns.http.loadRoutes({});
-    // Run module $start hooks in package.json proc.start order (db connects,
+    // Run module $start hooks in package.json proc.prod order (db connects,
     // http serves, …). $stop runs in reverse on shutdown.
     await ctx.fns.lifecycle.start({});
     const shutdown = async (sig: string) => {
@@ -57,11 +65,13 @@ export default async function main() {
     };
     process.on("SIGINT", () => shutdown("SIGINT"));
     process.on("SIGTERM", () => shutdown("SIGTERM"));
-    if (ctx.env.WATCH) await ctx.fns.dev.watch({}); // opt-in: WATCH=1 (the agent's primary path is ctx.fns.dev.def)
+    if (ctx.env.WATCH) await ctx.fns.dev.watch({}); // opt-in: WATCH=1
     return ctx;
 }
 
+export default boot;
+
 if (import.meta.main) {
-    const ctx = await main();
+    const ctx = await boot();
     (globalThis as any).ctx = ctx;
 }

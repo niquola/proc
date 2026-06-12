@@ -3,7 +3,7 @@
 // a tree from moduleDir segments and emit nested interface bodies (fns) and
 // nested `namespace` blocks (types). Each fn type is wrapped in Injected<> —
 // ctx/session stripped, matching the real call shape.
-import { relative } from "node:path";
+import { relative, resolve } from "node:path";
 
 type Node = { fns: Record<string, string>; types: Record<string, string>; children: Record<string, Node> };
 const makeNode = (): Node => ({ fns: {}, types: {}, children: {} });
@@ -16,7 +16,7 @@ const IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const k = (s: string): string => IDENT.test(s) ? s : JSON.stringify(s);
 
 export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
-    const srcDir = import.meta.dir;
+    const srcDir = resolve(ctx.fns.project.projectRoot({}), "src"); // app's src (where ctx_ns.d.ts lives)
     const entries = await ctx.fns.project.scan({});
 
     const globals: string[] = [];   // root $type_Name.ts

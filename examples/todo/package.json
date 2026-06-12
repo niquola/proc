@@ -1,9 +1,18 @@
 {
-  "name": "proc-todo",
+  "name": "todo-app",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun index.ts"
+  },
+  "dependencies": {
+    "proc": "file:../.."
+  },
   "proc": {
-    "namespace": "todo",
-    "src": "src"
+    "prod": {
+      "db": { "url": "data/todo.sqlite" },
+      "http": { "port": 47480 }
+    }
   }
 }

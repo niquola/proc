@@ -19,7 +19,7 @@ function pluginNamespace(from: string, projectRoot: string): string | null {
 export default async function (ctx: Context, _session: Session | null, opts: { from: string }) {
     if (ctx.fns.env.mode() === "prod") throw new Error("plugins.add is dev-only (loads third-party code)");
     const from = opts.from;
-    const projectRoot = resolve(import.meta.dir, "..", "..");
+    const projectRoot = ctx.fns.project.projectRoot({});
     const pkgPath = projectRoot + "/package.json";
 
     // 1. install (npm/git/local) — Bun resolves transitive deps into node_modules

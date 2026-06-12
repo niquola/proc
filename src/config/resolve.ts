@@ -4,7 +4,6 @@
 // Coerced + validated; invalid config throws (so a bad $start fails loudly).
 // Sync (readFileSync) so db.url() and friends stay synchronous.
 import { readFileSync } from "node:fs";
-import { resolve as resolvePath } from "node:path";
 
 const envify = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "_");
 
@@ -17,7 +16,7 @@ export default function (ctx: Context, _session: Session | null, opts: { module:
 
     let fromPkg: Record<string, any> = {};
     try {
-        const pkg = JSON.parse(readFileSync(resolvePath(import.meta.dir, "..", "..", "package.json"), "utf8"));
+        const pkg = JSON.parse(readFileSync(ctx.fns.project.projectRoot({}) + "/package.json", "utf8"));
         fromPkg = pkg.proc?.prod?.[mod] ?? pkg.proc?.config?.[mod] ?? {};
     } catch { /* no package.json (e.g. prod bundle) → env-only */ }
 

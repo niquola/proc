@@ -2,10 +2,8 @@
 // — its keys are the system modules; we start them in key order with "http"
 // last (so the server only accepts traffic after everything else initialized).
 // If proc.prod is absent, every module that has a $start.ts (http last).
-import { resolve } from "node:path";
-
 export default async function (ctx: Context, _session: Session | null, _opts?: {}): Promise<string[]> {
-    const projectRoot = resolve(import.meta.dir, "..", "..");
+    const projectRoot = ctx.fns.project.projectRoot({});
     let mods: string[];
     try {
         const prod = JSON.parse(await Bun.file(projectRoot + "/package.json").text()).proc?.prod;

@@ -27,6 +27,7 @@ declare global {
 
     interface CtxState {
         registry: Record<string, any>;
+        root?: string;              // project/app root (package.json + src live here)
         serverStart?: number;
         server?: { server: any; port: number };
         http?: { logFile: any };

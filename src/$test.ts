@@ -16,8 +16,9 @@ import loadFns from "./loadFns";
 // Registry + routes loaded (so ctx.fns.http.dispatch can match), NODE_ENV=test
 // (so ctx.fns.env.pick returns test config, e.g. an in-memory db), and NO
 // server is started. loadFns/loadRoutes are cheap; we silence the load chatter.
-export async function testCtx(): Promise<Context> {
+export async function testCtx(opts?: { root?: string }): Promise<Context> {
     const ctx = makeCtx();
+    if (opts?.root) ctx.state.root = opts.root; // boot an app rooted elsewhere (examples/*)
     ctx.env.NODE_ENV = "test";
     ctx.env.DATABASE_URL = ":memory:"; // test db, via config (env enters through config)
     const log = console.log;

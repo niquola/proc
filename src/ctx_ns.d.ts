@@ -67,20 +67,13 @@ declare global {
         };
         project: {
             classify: Injected<typeof import("./project/classify").default>;
+            projectRoot: Injected<typeof import("./project/projectRoot").default>;
             roots: Injected<typeof import("./project/roots").default>;
             scan: Injected<typeof import("./project/scan").default>;
         };
         repl: {
             eval: Injected<typeof import("./repl/eval").default>;
             load: Injected<typeof import("./repl/load").default>;
-        };
-        todo: {
-            add: Injected<typeof import("../examples/todo/src/add").default>;
-            list: Injected<typeof import("../examples/todo/src/list").default>;
-            migrate: Injected<typeof import("../examples/todo/src/migrate").default>;
-            remove: Injected<typeof import("../examples/todo/src/remove").default>;
-            render: Injected<typeof import("../examples/todo/src/render").default>;
-            toggle: Injected<typeof import("../examples/todo/src/toggle").default>;
         };
     }
 

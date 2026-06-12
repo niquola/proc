@@ -126,6 +126,18 @@ Two rules are **enforced by `ctx.fns.dev.lint({})`** (gated in `dev.def`/`dev.sy
 
 `ctx_ns.d.ts` is auto-generated — never edit by hand.
 
+## Running as an app — from the app's own folder (boot, src/$main.ts)
+
+Two ways to compose with proc: a **plugin** (mounted *into* a host — see below) or a standalone **app** (boots proc *as a dependency*, runs from its own folder). An app is a folder with `package.json` (depends on proc, has its `proc.prod` config), a `src/` of proc-convention files, and a one-line entry:
+
+```ts
+// examples/todo/index.ts
+import { boot } from "proc";              // the framework as a dependency
+await boot({ root: import.meta.dir });    // root = this app's folder
+```
+
+`boot({ root })` scans **two roots**: the app's `src/` (its fns/routes, at the root namespace `""`) **+ proc's own core** (`http`/`repl`/`dev`/`config`/`lifecycle`/… — always), merged into one `ctx.fns`. The **project root** (`ctx.state.root`) — where `package.json`, `src`, and the generated `ctx_ns.d.ts` live — is configurable, defaulting to proc's own repo root (so `bun src/$main.ts` and `testCtx()` without a root just work). Everything that reads `package.json` (`project.roots`/`config.resolve`/`lifecycle.order`/`plugins.*` via `ctx.fns.project.projectRoot`) or writes types (`genTypes`) honors it. The app scanned **last** overrides core defaults (e.g. its `GET /` home wins over proc's). Tests boot an app root with `testCtx({ root })`. Example: `examples/todo` (`cd examples/todo && bun index.ts`).
+
 ## Plugins (src/plugins/, PLUGINS.md)
 
 A plugin is a package (local dir / npm / git) with a `proc` field in its `package.json` (`{ namespace, src }`) and a `src/` tree of normal proc functions. Declared in the **host** `package.json` `proc.plugins: [{ from }]` (`from` = a `bun add` spec). `project/roots.ts` resolves each plugin's dir and `project/scan.ts` prefixes its namespace onto each file's path before `classify` (keeping `abs` at the real file) — so plugin code merges into the **one shared `ctx.fns`** under its namespace (`auth/login.ts` → `ctx.fns.auth.login`, route → `GET /auth/...`) and flows through loadFns / genTypes / lint / loadRoutes / manifest+build unchanged. `genTypes` and `dev.manifest` import by path relative to `entry.abs`, so plugin files outside `src/` are typed and bundled into the single `dist/app.js`. `dev.lint` guards namespace collisions across plugins. Surface: `ctx.fns.plugins.add({from})` (bun add → persist → remount, dev-only), `.list({})`, `.remove({from})`. Broken plugins are logged + skipped at boot. Example: `examples/hello`. Full guide in PLUGINS.md.
