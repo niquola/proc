@@ -197,7 +197,7 @@ Co-located `*.test.ts`, run with `bun test` (the scanner skips them, so they're 
 - **Unit** — `src/<path>/<fn>.test.ts` next to `<fn>.ts`. Tests one function. (e.g. `src/http/match.test.ts`, `src/dev/lint.test.ts`)
 - **Functional** — `src/<ns>.test.ts` next to the `<ns>/` directory. Tests the namespace's functions working together — state, events, routes, multi-fn flows. (e.g. `src/project.test.ts`, `src/events.test.ts`)
 
-The harness gives each test a real `ctx` with the full registry loaded but no server/watcher:
+The harness gives each test a real `ctx` with the full registry **and routes** loaded, `NODE_ENV=test`, and **no server** (`bun test` never opens a port):
 
 ```ts
 import { test, expect } from "bun:test";
@@ -208,7 +208,34 @@ test("fib", async () => {
 });
 ```
 
-Call functions idiomatically through `ctx.fns.*` (injection works in tests too). `reqCtx(ctx, { params, req })` builds a request-scoped ctx+session for testing route handlers. Run from the REPL with `ctx.fns.dev.test({ filter? })` (spawns `bun test` in a separate process — symmetric with `dev.typecheck`); `filter` is bun test's path/name filter, so `dev.test({ filter: "billing" })` runs that namespace's unit + functional tests.
+Call functions idiomatically through `ctx.fns.*` (injection works in tests too). Run from the REPL with `ctx.fns.dev.test({ filter? })` (spawns `bun test` in a separate process — symmetric with `dev.typecheck`); `filter` is bun test's path/name filter, so `dev.test({ filter: "billing" })` runs that namespace's unit + functional tests.
+
+**Testing REST — no server.** `ctx.fns.http.dispatch({ method?, url, body?, headers? })` does an in-process HTTP call: matches the route, builds a request ctx+session, runs the handler, wraps the result via `ctx.fns.http.toResponse` (shared with the real server) → returns a `Response`. `body` object → JSON. Same path the server runs, minus the socket:
+
+```ts
+const res = await ctx.fns.http.dispatch({ method: "POST", url: "/issues/add", body: { title: "x" } });
+expect(res.status).toBe(303);
+expect(await (await ctx.fns.http.dispatch({ url: "/issues" })).json()).toEqual([...]);
+```
+
+A pure handler can also just be called directly; `dispatch` is preferred because it exercises the routing/wrapping too. `reqCtx(ctx, { params, req })` (from `$test`) builds a request ctx+session if you want to call a handler with a session but bypass routing.
+
+## Environments (src/env/) — test · dev · prod, per-ctx
+
+The environment is a property of the **ctx**, not the process — derived from `ctx.env.NODE_ENV` (`production`→`prod`, `test`→`test`, else `dev`). So a test environment can coexist with dev in one running process / REPL.
+
+- `ctx.fns.env.mode()` → `"prod" | "test" | "dev"`.
+- `ctx.fns.env.pick({ test?, dev?, prod? })` → the value for this ctx's mode (falls back test→dev→prod). The idiomatic way to vary config — a config fn is just a function: `// src/db/url.ts` → `export default (ctx) => ctx.fns.env.pick({ test: ":memory:", dev: "data/dev.sqlite", prod: ctx.env.DATABASE_URL })`.
+- `ctx.fns.env.fork({ mode })` → a derived ctx that **shares the registry + routes (same code)** but has its **own env and own `state`** (own db connection, events, caches). This is what lets a test env live next to dev:
+
+```ts
+const t = ctx.fns.env.fork({ mode: "test" });   // in the live dev REPL
+await t.fns.db.connect({});                       // test db (env.pick → :memory:), separate from dev's
+const res = await t.fns.http.dispatch({ url: "/issues" });   // runs in the test env
+// dev's ctx.state / db / mode are untouched
+```
+
+`testCtx()` sets `NODE_ENV=test`; the prod bundle sets `production`; `bun src/$main.ts` is dev. Mechanism: the `ctx.fns` Proxy injects the ctx you call through and reads `this.state.registry`, so a derived ctx (`Object.create` + own `env`/`state`, registry carried over) resolves the same functions but in its own world.
 
 ## Events / SSE (src/events/)
 

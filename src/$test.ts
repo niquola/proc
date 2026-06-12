@@ -13,12 +13,18 @@ import { makeCtx } from "./$main";
 import loadFns from "./loadFns";
 
 // Fresh ctx per call → test files don't leak ctx.state into each other.
-// loadFns is cheap (scan + import); we just silence its [fns] load chatter.
+// Registry + routes loaded (so ctx.fns.http.dispatch can match), NODE_ENV=test
+// (so ctx.fns.env.pick returns test config, e.g. an in-memory db), and NO
+// server is started. loadFns/loadRoutes are cheap; we silence the load chatter.
 export async function testCtx(): Promise<Context> {
     const ctx = makeCtx();
+    ctx.env.NODE_ENV = "test";
     const log = console.log;
     console.log = () => {};
-    try { await loadFns(ctx, null, {}); } finally { console.log = log; }
+    try {
+        await loadFns(ctx, null, {});
+        await ctx.fns.http.loadRoutes({});
+    } finally { console.log = log; }
     return ctx;
 }
 

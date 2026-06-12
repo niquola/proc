@@ -1,7 +1,10 @@
 // makeCtx: raw fns live in ctx.state.registry; ctx.fns is a Proxy that injects
 // (ctx, ctx.session) into every call — `ctx.fns.notes.add({text})` actually
-// calls rawAdd(ctx, ctx.session, {text}). The getter uses `this`, so a
-// request ctx (Object.create(rootCtx) + session) injects ITS session.
+// calls rawAdd(ctx, ctx.session, {text}). The getter reads `this` throughout,
+// so a derived ctx (Object.create + own session / env / state) injects ITSELF:
+//   - request ctx: + session {req, params}        → session flows
+//   - env ctx (env.fork): + env {NODE_ENV} + fresh state, shared registry
+//     → a test environment coexists with dev in the same process
 export function makeCtx(): Context {
     const ctx: any = {
         env: { ...process.env },
@@ -10,7 +13,7 @@ export function makeCtx(): Context {
         session: null,
     };
     Object.defineProperty(ctx, 'fns', {
-        get() { return wrapFns(this, ctx.state.registry); },
+        get() { return wrapFns(this, this.state.registry); },
     });
     return ctx as Context;
 }

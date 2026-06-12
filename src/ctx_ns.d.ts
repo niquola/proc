@@ -17,6 +17,11 @@ declare global {
             typecheck: Injected<typeof import("./dev/typecheck").default>;
             watch: Injected<typeof import("./dev/watch").default>;
         };
+        env: {
+            fork: Injected<typeof import("./env/fork").default>;
+            mode: Injected<typeof import("./env/mode").default>;
+            pick: Injected<typeof import("./env/pick").default>;
+        };
         events: {
             emit: Injected<typeof import("./events/emit").default>;
             reload: Injected<typeof import("./events/reload").default>;
@@ -28,9 +33,11 @@ declare global {
             route: Injected<typeof import("./generate/route").default>;
         };
         http: {
+            dispatch: Injected<typeof import("./http/dispatch").default>;
             loadRoutes: Injected<typeof import("./http/loadRoutes").default>;
             match: Injected<typeof import("./http/match").default>;
             start: Injected<typeof import("./http/$start").default>;
+            toResponse: Injected<typeof import("./http/toResponse").default>;
         };
         project: {
             classify: Injected<typeof import("./project/classify").default>;

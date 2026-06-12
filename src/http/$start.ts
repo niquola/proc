@@ -21,7 +21,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
             (rctx as any).session = { kind: 'http', req, params: m.params, url };
             try {
                 const raw = await m.handler(rctx, rctx.session, { req, params: m.params });
-                const res = toResponse(rctx, raw);
+                const res = rctx.fns.http.toResponse({ value: raw });
                 log(logFile, req.method, url.pathname + url.search, res.status, performance.now() - t0);
                 return res;
             } catch (e: any) {
@@ -37,29 +37,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
     console.log(`[server] listening on http://localhost:${port}  (written to .runtime/port)`);
 }
 
-// Auto-wrap handler return values:
-//   Response              → passthrough
-//   string                → HTML, wrapped with ctx.layout({ main: string })
-//   { main, title?, ... } → HTML, wrapped with ctx.layout(opts)
-//   other                 → JSON
-function toResponse(ctx: Context, v: any): Response {
-    if (v instanceof Response) return v;
-    if (typeof v === "string" && (ctx as any).layout) {
-        return new Response(ctx.layout({ main: v }), { headers: htmlHeaders() });
-    }
-    if (v && typeof v === "object" && typeof v.main === "string" && (ctx as any).layout) {
-        const { status, ...opts } = v;
-        return new Response(ctx.layout(opts), { status: status ?? 200, headers: htmlHeaders() });
-    }
-    return new Response(JSON.stringify(v ?? null), {
-        status: 200,
-        headers: { "content-type": "application/json" },
-    });
-}
-
-function htmlHeaders() {
-    return { "content-type": "text/html; charset=utf-8" };
-}
+// Response wrapping lives in http/toResponse.ts (shared with http.dispatch).
 
 function log(sink: any, method: string, path: string, status: number, ms: number, err?: string) {
     const dur = ms < 1 ? `${ms.toFixed(2)}ms` : `${ms.toFixed(0)}ms`;
