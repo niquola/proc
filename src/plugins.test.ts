@@ -11,10 +11,11 @@ test("plugin merges into the shared ctx.fns under its namespace", () => {
     expect(ctx.fns.hello.world({ name: "x" })).toMatchObject({ hello: "x", from: "plugin", mode: "test" });
 });
 
-test("plugin route is namespace-prefixed and dispatchable", async () => {
+test("plugin route is namespace-prefixed, dispatchable, and runs the plugin's $middleware", async () => {
     const res = await ctx.fns.http.dispatch({ url: "/hello/ping" });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ from: "plugin" });
+    // via = set on the session by examples/hello/src/$middleware.ts (prefix /hello)
+    expect(await res.json()).toMatchObject({ from: "plugin", via: "hello-middleware" });
 });
 
 test("plugins.list reports the mounted plugin", async () => {

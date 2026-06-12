@@ -47,6 +47,7 @@ declare global {
             dispatch: Injected<typeof import("./http/dispatch").default>;
             loadRoutes: Injected<typeof import("./http/loadRoutes").default>;
             match: Injected<typeof import("./http/match").default>;
+            middleware: Injected<typeof import("./http/middleware").default>;
             start: Injected<typeof import("./http/$start").default>;
             toResponse: Injected<typeof import("./http/toResponse").default>;
         };
@@ -75,6 +76,10 @@ declare global {
     genTypes: Injected<typeof import("./genTypes").default>;
     layout: Injected<typeof import("./$layout").default>;
     loadFns: Injected<typeof import("./loadFns").default>;
+    }
+
+    interface CtxState {
+        hello: import("../examples/hello/src/$state_hello").hello;
     }
 }
 export {};

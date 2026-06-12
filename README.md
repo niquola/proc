@@ -135,6 +135,7 @@ Handlers return whatever is convenient: a `Response` passes through, a `string` 
 
 - Route files: `$route_<path>_<METHOD>.ts`, `_` → `/`, `$id` → `:id`. So `src/todo/$route_$id_edit_GET.ts` → `GET /todo/:id/edit`.
 - Directories nest to any depth: `src/billing/invoices/create.ts` → `ctx.fns.billing.invoices.create`, consistently across runtime, types, and the build.
+- `module/$middleware[_<path>].ts` runs before handlers under `/module[/<path>]/*` — mutate `session` to extend it, or return a `Response` to short-circuit. `module/$state_<key>.ts` types `ctx.state.<key>`.
 - `ctx.fns.dev.lint({})` (gated in def/sync/build/boot) forbids the two ways nesting silently breaks: non-identifier names, and a name being both a function and a namespace (`x.ts` beside `x/`).
 - Tests are co-located `*.test.ts` (`bun test`): `X.test.ts` tests `X` — unit if `X.ts` is a function, functional if `X/` is a namespace. `testCtx()` gives a loaded `ctx` (test mode, no server); `ctx.fns.http.dispatch({url})` tests REST in-process.
 - Environments are per-ctx (`ctx.fns.env.mode/pick`): `ctx.fns.env.fork({ mode: "test" })` spins a test env — own state + db, shared code — coexisting with dev in one process.

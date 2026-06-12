@@ -32,6 +32,10 @@ export default async function (
     // Request ctx: inherits this env-ctx (so dispatch on a forked test ctx runs
     // against the test env), carries the session through the call chain.
     const rctx = makeRequestCtx(ctx, { kind: "dispatch", req, params: m.params, url: u });
+    for (const mw of ctx.fns.http.middleware({ pathname: u.pathname })) {
+        const short = await mw.handler(rctx, rctx.session, { req, params: m.params });
+        if (short instanceof Response) return short;
+    }
     const raw = await m.handler(rctx, rctx.session, { req, params: m.params });
     return ctx.fns.http.toResponse({ value: raw });
 }

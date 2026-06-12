@@ -21,6 +21,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
 
     const globals: string[] = [];   // root $type_Name.ts
     const rootFns: string[] = [];   // root $name.ts → ctx.<name>
+    const stateSlots: string[] = []; // $state_<key>.ts → ctx.state.<key>
     const root = makeNode();
     const moduleDirs = new Set<string>();
     let typeCount = 0;
@@ -32,12 +33,15 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
     };
 
     for (const entry of entries) {
-        if (entry.kind !== 'fn' && entry.kind !== 'type') continue;
+        if (entry.kind !== 'fn' && entry.kind !== 'type' && entry.kind !== 'state') continue;
         // Import path is relative to src/ (where ctx_ns.d.ts lives), from the
         // REAL file (entry.abs) — so plugin files outside src/ resolve too.
         let importPath = relative(srcDir, (entry as any).abs).replace(/\.ts$/, '');
         if (!importPath.startsWith('.')) importPath = './' + importPath;
-        if (entry.kind === 'type') {
+        if (entry.kind === 'state') {
+            // The file exports `type <key>`; it types ctx.state.<key>.
+            stateSlots.push(`        ${entry.stateKey}: import("${importPath}").${entry.stateKey};`);
+        } else if (entry.kind === 'type') {
             typeCount++;
             if (entry.moduleDir === '.') globals.push(`    type ${entry.typeName} = import("${importPath}").${entry.typeName};`);
             else walk(entry.moduleDir.split('/')).types[entry.typeName] = importPath;
@@ -92,10 +96,14 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
     if (hasTypes(root)) {
         lines.push('', '    namespace types {', ...emitTypes(root, '        '), '    }');
     }
+    if (stateSlots.length) {
+        // Merges into the CtxState interface in $type_Context.ts → typed ctx.state.<key>.
+        lines.push('', '    interface CtxState {', ...stateSlots.sort(), '    }');
+    }
     lines.push('}', 'export {};', '');
 
     const out = srcDir + '/ctx_ns.d.ts';
     await Bun.write(out, lines.join('\n'));
-    console.log('[genTypes] ' + rootFns.length + ' root fn(s), ' + moduleDirs.size + ' module(s), ' + typeCount + ' type(s) → src/ctx_ns.d.ts');
-    return { roots: rootFns.length, modules: moduleDirs.size, types: typeCount };
+    console.log('[genTypes] ' + rootFns.length + ' root fn(s), ' + moduleDirs.size + ' module(s), ' + typeCount + ' type(s), ' + stateSlots.length + ' state slot(s) → src/ctx_ns.d.ts');
+    return { roots: rootFns.length, modules: moduleDirs.size, types: typeCount, state: stateSlots.length };
 }

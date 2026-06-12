@@ -7,7 +7,7 @@
 const MAIN_TEMPLATE = `// AUTO-GENERATED prod entry — Bun.build bundles this + everything it imports.
 import { makeCtx } from "../../src/$main";
 import { defineRootFn } from "../../src/loadFns";
-import { registry, rootFns, routeDefs } from "./manifest";
+import { registry, rootFns, routeDefs, middlewareDefs } from "./manifest";
 
 const ctx = makeCtx();
 ctx.env.NODE_ENV = ctx.env.NODE_ENV ?? "production"; // disables /repl, error stacks
@@ -15,8 +15,11 @@ ctx.state.registry = registry;                        // static registry — no 
 for (const k of Object.keys(rootFns)) defineRootFn(ctx, k, rootFns[k]);
 ctx.routes = {};
 for (const r of routeDefs) (ctx.routes[r.path] ??= {})[r.method] = r.handler;
+ctx.state.middleware = middlewareDefs
+    .map((m) => ({ ...m, segs: m.prefix.split("/").filter(Boolean) }))
+    .sort((a, b) => a.segs.length - b.segs.length);
 await ctx.fns.http.start({});
-console.log("[prod] booted from bundle — " + routeDefs.length + " routes, registry frozen, no src scan");
+console.log("[prod] booted from bundle — " + routeDefs.length + " routes, " + middlewareDefs.length + " middleware, registry frozen");
 `;
 
 export default async function (ctx: Context, _session: Session | null, opts?: { outdir?: string }) {

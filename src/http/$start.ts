@@ -21,6 +21,15 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
             // the handler calls via rctx.fns.* gets this session implicitly.
             const rctx = makeRequestCtx(ctx, { kind: 'http', req, params: m.params, url });
             try {
+                // Middleware (by path prefix) run first; they may mutate the
+                // session or short-circuit by returning a Response.
+                for (const mw of ctx.fns.http.middleware({ pathname: url.pathname })) {
+                    const short = await mw.handler(rctx, rctx.session, { req, params: m.params });
+                    if (short instanceof Response) {
+                        log(logFile, req.method, url.pathname + url.search, short.status, performance.now() - t0);
+                        return short;
+                    }
+                }
                 const raw = await m.handler(rctx, rctx.session, { req, params: m.params });
                 const res = rctx.fns.http.toResponse({ value: raw });
                 log(logFile, req.method, url.pathname + url.search, res.status, performance.now() - t0);

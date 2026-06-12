@@ -3,8 +3,16 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
     // route/script files don't leave stale handlers behind (loadRoutes used to
     // only add). The server reads ctx.routes per request, so the swap is clean.
     const routes: Record<string, Record<string, Function>> = {};
+    const middleware: Array<{ prefix: string; segs: string[]; handler: Function }> = [];
     const entries = await ctx.fns.project.scan({});
     for (const entry of entries) {
+        if (entry.kind === 'middleware') {
+            const mod = await import(entry.abs + `?t=${Date.now()}`);
+            if (typeof mod.default !== 'function') { console.warn(`[middleware] skip (no default export): ${entry.root}/${entry.rel}`); continue; }
+            middleware.push({ prefix: entry.prefix, segs: entry.prefix.split('/').filter(Boolean), handler: mod.default });
+            console.log(`[middleware] ${entry.prefix}/*  ←  ${entry.root}/${entry.rel}`);
+            continue;
+        }
         if (entry.kind === 'route') {
             const mod = await import(entry.abs + `?t=${Date.now()}`);
             const handler = mod.default;
@@ -31,6 +39,9 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
             console.log(`[scripts] GET    ${entry.routePath}  ←  ${entry.root}/${entry.rel}`);
         }
     }
+    // General prefixes first (outermost runs first; most specific last).
+    middleware.sort((a, b) => a.segs.length - b.segs.length);
+    ctx.state.middleware = middleware;
     ctx.routes = routes;
     return ctx.routes;
 }

@@ -22,6 +22,7 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
     const fnTree: Record<string, string> = {};   // 'issues.add' -> localName
     const rootFns: Record<string, string> = {};
     const routeDefs: string[] = [];
+    const middlewareDefs: string[] = [];
     let n = 0;
 
     for (const e of entries) {
@@ -34,8 +35,12 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
             const local = "r" + (n++);
             imports.push(`import ${local} from "${rel(e.abs)}";`);
             routeDefs.push(`  { method: ${JSON.stringify(e.method)}, path: ${JSON.stringify(e.routePath)}, handler: ${local} },`);
+        } else if (e.kind === "middleware") {
+            const local = "m" + (n++);
+            imports.push(`import ${local} from "${rel(e.abs)}";`);
+            middlewareDefs.push(`  { prefix: ${JSON.stringify(e.prefix)}, handler: ${local} },`);
         }
-        // $type_ → types only, irrelevant at runtime; $script_ → Later (pre-bundle assets)
+        // $type_/$state_ → types only, irrelevant at runtime; $script_ → Later (pre-bundle assets)
     }
 
     // nested registry literal from dotted keys
@@ -64,6 +69,9 @@ ${emitRoot}
 };
 export const routeDefs: any[] = [
 ${routeDefs.join("\n")}
+];
+export const middlewareDefs: any[] = [
+${middlewareDefs.join("\n")}
 ];
 `;
     await Bun.write(out, src);

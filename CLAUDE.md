@@ -88,6 +88,8 @@ The whole system is one object — `ctx` — and a pipeline that fills it from t
 | `$name.ts` (in src/ root) | root function | `ctx.name` (e.g. `ctx.genTypes`, `ctx.layout`) |
 | `$type_Name.ts` | TypeScript type | global `Name` (root) or `types.module.Name` |
 | `module/$route_<path>_<METHOD>.ts` | HTTP route | `METHOD /module/<path>` |
+| `module/$middleware[_<path>].ts` | middleware | runs before handlers under `/module[/<path>]/*` |
+| `module/$state_<key>.ts` | typed state slot | types `ctx.state.<key>` (file exports `type <key>`) |
 | `module/$script_name.js\|.css` | browser asset | `GET /module/name.js` (bundled by Bun.build on request) |
 | `*.test.ts`, `*.entry.ts`, `*.d.ts`, `$main.ts` | skipped | — |
 
@@ -156,6 +158,16 @@ Limitation: code executed in the REPL buffer is never typechecked (only transpil
   - `{ main, title?, status? }` → HTML via layout
   - anything else → JSON
 - `$layout.ts` — HTML shell (Tailwind CDN + htmx + `/events/client.js`)
+
+## Middleware & typed state
+
+**Middleware** — `$middleware[_<path>].ts` runs before a route handler when the request path is under its prefix. Bare `module/$middleware.ts` → prefix `/module`; the `_<path>` suffix extends it (`_`→`/`, `$id`→`:id` one-segment wildcard). They run **most-general-prefix first**, get `(ctx, session, opts{req,params})`, and:
+- mutate the **session** to extend it — `session.user = …`, `session.tenant = …` — which then flows to the handler and everything it calls via `ctx.fns.*` (the session is on the request ctx);
+- **short-circuit** by returning a `Response` (auth 401, redirect) — no handler runs.
+
+Collected into `ctx.state.middleware` by `loadRoutes`, matched by `ctx.fns.http.middleware({pathname})`, run by both `http/$start` (server) and `http.dispatch` (tests). Plugin middleware is namespace-prefixed like its routes. Included in the prod bundle.
+
+**Typed state** — `$state_<key>.ts` declares the *type* of `ctx.state.<key>` (the file exports `type <key>`). `genTypes` merges it into the global `CtxState` interface, so `ctx.state.<key>` is typed everywhere. The *value* is set at runtime (by a middleware, fn, or — see lifecycle — a `$start`). Example: `examples/hello/src/$state_hello.ts` + `$middleware.ts` (writes `session.via` and the typed `ctx.state.hello`).
 
 ## REPL (src/repl/)
 

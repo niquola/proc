@@ -1,17 +1,22 @@
-// Per-ctx state. Framework-owned keys are typed; app/plugin state uses the
-// index signature. The registry is here (the ctx.fns Proxy reads it), so a
-// derived ctx (request / env.fork) carrying its own state stays self-consistent.
-export type CtxState = {
-    registry: Record<string, any>;
-    serverStart?: number;
-    server?: { server: any; port: number };
-    http?: { logFile: any };
-    events?: { subs: Set<(e: any) => void> };
-    dev?: { errors: Map<string, string> };
-    watcher?: any;
-    db?: import("bun:sqlite").Database;
-    [key: string]: any;
-};
+// Per-ctx state. Framework-owned keys are typed here; app/plugin state uses the
+// index signature, OR a typed slot declared via a `$state_<key>.ts` file (which
+// genTypes merges into this global interface). The registry is here (the ctx.fns
+// Proxy reads it), so a derived ctx (request / env.fork) carrying its own state
+// stays self-consistent.
+declare global {
+    interface CtxState {
+        registry: Record<string, any>;
+        serverStart?: number;
+        server?: { server: any; port: number };
+        http?: { logFile: any };
+        events?: { subs: Set<(e: any) => void> };
+        middleware?: Array<{ prefix: string; segs: string[]; handler: Function }>;
+        dev?: { errors: Map<string, string> };
+        watcher?: any;
+        db?: import("bun:sqlite").Database;
+        [key: string]: any;
+    }
+}
 
 // Every function in the project has the signature:
 //     export default async function (ctx: Context, session: Session, opts: {...}) {...}
