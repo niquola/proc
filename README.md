@@ -111,6 +111,8 @@ Handlers return whatever is convenient: a `Response` passes through, a `string` 
 ## Conventions
 
 - Route files: `$route_<path>_<METHOD>.ts`, `_` → `/`, `$id` → `:id`. So `src/todo/$route_$id_edit_GET.ts` → `GET /todo/:id/edit`.
+- Directories nest to any depth: `src/billing/invoices/create.ts` → `ctx.fns.billing.invoices.create`, consistently across runtime, types, and the build.
+- `ctx.fns.dev.lint({})` (gated in def/sync/build/boot) forbids the two ways nesting silently breaks: non-identifier names, and a name being both a function and a namespace (`x.ts` beside `x/`).
 - Never import project functions from each other — call through `ctx.fns` (that's what makes everything hot-swappable).
 - `ctx.state` holds runtime singletons and survives between REPL calls.
 - Editing `$main.ts`, `http/$start.ts` or `dev/watch.ts` requires a restart — they live as running closures. Everything else hot-reloads.
