@@ -47,7 +47,16 @@ export default async function main() {
     if (!lint.ok) console.error(`[boot] ${lint.errors.length} namespace lint error(s) — fix before building (see [lint] above)`);
     await ctx.genTypes({});
     await ctx.fns.http.loadRoutes({});
-    await ctx.fns.http.start({});
+    // Run module $start hooks in package.json proc.start order (db connects,
+    // http serves, …). $stop runs in reverse on shutdown.
+    await ctx.fns.lifecycle.start({});
+    const shutdown = async (sig: string) => {
+        console.log(`\n[${sig}] shutting down`);
+        await ctx.fns.lifecycle.stop({});
+        process.exit(0);
+    };
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
     if (ctx.env.WATCH) await ctx.fns.dev.watch({}); // opt-in: WATCH=1 (the agent's primary path is ctx.fns.dev.def)
     return ctx;
 }

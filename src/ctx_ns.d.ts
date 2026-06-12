@@ -48,8 +48,13 @@ declare global {
             loadRoutes: Injected<typeof import("./http/loadRoutes").default>;
             match: Injected<typeof import("./http/match").default>;
             middleware: Injected<typeof import("./http/middleware").default>;
-            start: Injected<typeof import("./http/$start").default>;
             toResponse: Injected<typeof import("./http/toResponse").default>;
+        };
+        lifecycle: {
+            config: Injected<typeof import("./lifecycle/config").default>;
+            order: Injected<typeof import("./lifecycle/order").default>;
+            start: Injected<typeof import("./lifecycle/start").default>;
+            stop: Injected<typeof import("./lifecycle/stop").default>;
         };
         plugins: {
             add: Injected<typeof import("./plugins/add").default>;

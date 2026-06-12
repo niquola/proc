@@ -7,7 +7,7 @@
 const MAIN_TEMPLATE = `// AUTO-GENERATED prod entry — Bun.build bundles this + everything it imports.
 import { makeCtx } from "../../src/$main";
 import { defineRootFn } from "../../src/loadFns";
-import { registry, rootFns, routeDefs, middlewareDefs } from "./manifest";
+import { registry, rootFns, routeDefs, middlewareDefs, lifecycleDefs, startOrder } from "./manifest";
 
 const ctx = makeCtx();
 ctx.env.NODE_ENV = ctx.env.NODE_ENV ?? "production"; // disables /repl, error stacks
@@ -18,8 +18,26 @@ for (const r of routeDefs) (ctx.routes[r.path] ??= {})[r.method] = r.handler;
 ctx.state.middleware = middlewareDefs
     .map((m) => ({ ...m, segs: m.prefix.split("/").filter(Boolean) }))
     .sort((a, b) => a.segs.length - b.segs.length);
-await ctx.fns.http.start({});
-console.log("[prod] booted from bundle — " + routeDefs.length + " routes, " + middlewareDefs.length + " middleware, registry frozen");
+
+// Run $start hooks in the baked order (db, http, …), $stop in reverse on exit.
+ctx.state.lifecycle = { started: [] };
+for (const mod of startOrder) {
+    const e = lifecycleDefs.find((d) => d.module === mod && d.hook === "start");
+    if (!e) continue;
+    const st = await e.handler(ctx, null, {});
+    if (st && typeof st === "object") Object.assign((ctx.state[mod] ??= {}), st);
+    ctx.state.lifecycle.started.push(mod);
+}
+const stop = async () => {
+    for (const mod of [...ctx.state.lifecycle.started].reverse()) {
+        const e = lifecycleDefs.find((d) => d.module === mod && d.hook === "stop");
+        if (e) try { await e.handler(ctx, null, ctx.state[mod]); } catch {}
+    }
+    process.exit(0);
+};
+process.on("SIGINT", stop);
+process.on("SIGTERM", stop);
+console.log("[prod] booted from bundle — " + routeDefs.length + " routes, " + middlewareDefs.length + " middleware, " + ctx.state.lifecycle.started.length + " started, registry frozen");
 `;
 
 export default async function (ctx: Context, _session: Session | null, opts?: { outdir?: string }) {

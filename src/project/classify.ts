@@ -9,6 +9,7 @@ export type ProjectEntry =
     | { kind: "script"; rel: string; moduleDir: string; fileName: string; routePath: string }
     | { kind: "middleware"; rel: string; moduleDir: string; fileName: string; prefix: string }
     | { kind: "state"; rel: string; moduleDir: string; fileName: string; stateKey: string }
+    | { kind: "lifecycle"; rel: string; moduleDir: string; fileName: string; hook: "start" | "stop" }
     | { kind: "skip"; rel: string; moduleDir: string; fileName: string; reason: string };
 
 export default function (_ctx: Context, _session: Session | null, opts: { rel: string }): ProjectEntry {
@@ -66,6 +67,12 @@ export default function (_ctx: Context, _session: Session | null, opts: { rel: s
         const stateKey = stem.slice('$state_'.length);
         if (!stateKey) return { kind: 'skip', rel, moduleDir, fileName, reason: 'bad-state-name' };
         return { kind: 'state', rel, moduleDir, fileName, stateKey };
+    }
+
+    // $start.ts / $stop.ts → module lifecycle hooks (init / teardown of ctx),
+    // run by ctx.fns.lifecycle.* in the order declared in package.json proc.start.
+    if (stem === '$start' || stem === '$stop') {
+        return { kind: 'lifecycle', rel, moduleDir, fileName, hook: stem.slice(1) as 'start' | 'stop' };
     }
 
     const runtimeName = stem.startsWith('$') ? stem.slice(1) : stem;

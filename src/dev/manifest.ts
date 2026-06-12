@@ -23,6 +23,7 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
     const rootFns: Record<string, string> = {};
     const routeDefs: string[] = [];
     const middlewareDefs: string[] = [];
+    const lifecycleDefs: string[] = [];
     let n = 0;
 
     for (const e of entries) {
@@ -39,9 +40,14 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
             const local = "m" + (n++);
             imports.push(`import ${local} from "${rel(e.abs)}";`);
             middlewareDefs.push(`  { prefix: ${JSON.stringify(e.prefix)}, handler: ${local} },`);
+        } else if (e.kind === "lifecycle") {
+            const local = "l" + (n++);
+            imports.push(`import ${local} from "${rel(e.abs)}";`);
+            lifecycleDefs.push(`  { module: ${JSON.stringify(e.moduleDir)}, hook: ${JSON.stringify(e.hook)}, handler: ${local} },`);
         }
         // $type_/$state_ → types only, irrelevant at runtime; $script_ → Later (pre-bundle assets)
     }
+    const startOrder = await ctx.fns.lifecycle.order({});
 
     // nested registry literal from dotted keys
     const reg: any = {};
@@ -73,6 +79,10 @@ ${routeDefs.join("\n")}
 export const middlewareDefs: any[] = [
 ${middlewareDefs.join("\n")}
 ];
+export const lifecycleDefs: any[] = [
+${lifecycleDefs.join("\n")}
+];
+export const startOrder: string[] = ${JSON.stringify(startOrder)};
 `;
     await Bun.write(out, src);
     return { out, fns: Object.keys(fnTree).length, rootFns: Object.keys(rootFns).length, routes: routeDefs.length };

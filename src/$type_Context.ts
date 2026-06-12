@@ -11,6 +11,7 @@ declare global {
         http?: { logFile: any };
         events?: { subs: Set<(e: any) => void> };
         middleware?: Array<{ prefix: string; segs: string[]; handler: Function }>;
+        lifecycle?: { started: string[] };
         dev?: { errors: Map<string, string> };
         watcher?: any;
         db?: import("bun:sqlite").Database;

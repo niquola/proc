@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "proc": {
+    "start": ["db", "http"],
     "plugins": [
       { "from": "file:./examples/hello" }
     ]
