@@ -10,6 +10,7 @@ declare global {
         dev: {
             build: Injected<typeof import("./dev/build").default>;
             def: Injected<typeof import("./dev/def").default>;
+            lint: Injected<typeof import("./dev/lint").default>;
             manifest: Injected<typeof import("./dev/manifest").default>;
             sync: Injected<typeof import("./dev/sync").default>;
             typecheck: Injected<typeof import("./dev/typecheck").default>;

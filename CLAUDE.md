@@ -72,6 +72,17 @@ Every function file is `export default async function (ctx: Context, session: Se
 
 Directories `_runtime`, `_test_*`, `_tmp_*`, `tmp_*` are ignored by the scanner.
 
+## Nested namespaces & the lint (src/dev/lint.ts)
+
+Directories nest the registry to any depth: `src/billing/invoices/create.ts` → `ctx.fns.billing.invoices.create`. The same nesting flows through runtime (loadFns + the injecting Proxy), types (genTypes emits nested interface bodies + nested `namespace` blocks), and the build (manifest emits a nested literal) — kept in sync because all three walk the moduleDir segments the same way.
+
+Two rules are **enforced by `ctx.fns.dev.lint({})`** (gated in `dev.def`/`dev.sync`/`dev.build`, and checked at boot):
+
+1. **Every segment / function name / type name is a valid JS identifier** (`/^[A-Za-z_$][\w$]*$/`). Dashes/dots/spaces break the generated `ctx_ns.d.ts` (and dots corrupt the build manifest's dotted-key tree). A reserved word like `delete` is fine (valid as a member name). Route *paths* may contain dots (`$route_client.js_GET.ts` → `/events/client.js`) — those are string keys, not registry nesting, so they're allowed.
+2. **A name is either a function or a namespace, never both.** `src/x/cart.ts` (a fn) beside `src/x/cart/…` (a namespace) is forbidden: at runtime the injecting Proxy wraps the function and drops the nested fns; the build silently loses them; genTypes emits a duplicate member. Callable-namespaces can't coexist with the Proxy, so the collision is rejected — rename one.
+
+`dev.def`/`dev.sync` throw with the lint errors (def also rolls back the file it just wrote); `dev.build` aborts so a broken bundle never ships; boot logs `[lint] ✗ …` but keeps running so you can fix via the REPL. genTypes also defensively quotes non-identifier member keys so one stray hand-edited file can't nuke the whole `ctx_ns.d.ts` before you see the lint.
+
 ## Core (boot sequence, src/$main.ts)
 
 1. `makeCtx()` ($main.ts) — ctx with `state.registry` and the injecting Proxy getter `fns`

@@ -7,6 +7,11 @@ type Node = { fns: Record<string, string>; types: Record<string, string>; childr
 const makeNode = (): Node => ({ fns: {}, types: {}, children: {} });
 const hasFns = (n: Node): boolean => Object.keys(n.fns).length > 0 || Object.values(n.children).some(hasFns);
 const hasTypes = (n: Node): boolean => Object.keys(n.types).length > 0 || Object.values(n.children).some(hasTypes);
+// Defense-in-depth: dev.lint forbids non-identifier names, but if one slips in
+// (hand-edited file before lint runs), quote FnsRegistry member keys so a single
+// bad name doesn't break the whole d.ts. Namespaces/type-aliases can't be quoted.
+const IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+const k = (s: string): string => IDENT.test(s) ? s : JSON.stringify(s);
 
 export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
     const srcDir = import.meta.dir;
@@ -40,21 +45,24 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
     const emitFns = (node: Node, ind: string): string[] => {
         const out: string[] = [];
         for (const name of Object.keys(node.fns).sort())
-            out.push(`${ind}${name}: Injected<typeof import("${node.fns[name]}").default>;`);
+            out.push(`${ind}${k(name)}: Injected<typeof import("${node.fns[name]}").default>;`);
         for (const seg of Object.keys(node.children).sort()) {
             const child = node.children[seg]!;
             if (!hasFns(child)) continue;
-            out.push(`${ind}${seg}: {`, ...emitFns(child, ind + '    '), `${ind}};`);
+            out.push(`${ind}${k(seg)}: {`, ...emitFns(child, ind + '    '), `${ind}};`);
         }
         return out;
     };
     const emitTypes = (node: Node, ind: string): string[] => {
         const out: string[] = [];
-        for (const name of Object.keys(node.types).sort())
+        for (const name of Object.keys(node.types).sort()) {
+            if (!IDENT.test(name)) { console.warn(`[genTypes] skip non-identifier type "${name}"`); continue; }
             out.push(`${ind}type ${name} = import("${node.types[name]}").${name};`);
+        }
         for (const seg of Object.keys(node.children).sort()) {
             const child = node.children[seg]!;
             if (!hasTypes(child)) continue;
+            if (!IDENT.test(seg)) { console.warn(`[genTypes] skip non-identifier namespace "${seg}"`); continue; }
             out.push(`${ind}namespace ${seg} {`, ...emitTypes(child, ind + '    '), `${ind}}`);
         }
         return out;

@@ -2,6 +2,13 @@
 // Companion to an external editor/Write: write file → dev.sync({rel}) → test.
 export default async function (ctx: Context, _session: Session | null, opts: { rel: string }) {
     const entry = ctx.fns.project.classify({ rel: opts.rel });
+
+    // Namespace lint gate (fn/type files affect the registry/types tree).
+    if (entry.kind === 'fn' || entry.kind === 'type') {
+        const lint = await ctx.fns.dev.lint({ silent: true });
+        if (!lint.ok) throw new Error(`src/${opts.rel} rejected by lint:\n` + lint.errors.map((e: string) => '  ✗ ' + e).join('\n'));
+    }
+
     if (entry.kind === 'fn') {
         const name = entry.moduleDir === '.' ? entry.runtimeName : entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName;
         await ctx.fns.repl.load({ name });

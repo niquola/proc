@@ -20,6 +20,10 @@ console.log("[prod] booted from bundle — " + routeDefs.length + " routes, regi
 `;
 
 export default async function (ctx: Context, _session: Session | null, opts?: { outdir?: string }) {
+    // Never ship a bundle with name collisions / invalid names.
+    const lint = await ctx.fns.dev.lint({});
+    if (!lint.ok) throw new Error(`build aborted — lint failed:\n` + lint.errors.map((e) => "  ✗ " + e).join("\n"));
+
     const m = await ctx.fns.dev.manifest({ out: ".runtime/build/manifest.ts" });
     await Bun.write(".runtime/build/main.ts", MAIN_TEMPLATE);
 

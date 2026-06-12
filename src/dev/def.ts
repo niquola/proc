@@ -3,6 +3,8 @@
 // nothing half-registered. The agent's primary way to add code:
 //   await ctx.fns.dev.def({ name: "math.fib", code: "export default ..." })
 //   await ctx.fns.dev.def({ rel: "math/$route__GET.ts", code: "..." })
+import { rm } from "node:fs/promises";
+
 export default async function (ctx: Context, _session: Session | null, opts: { name?: string; rel?: string; code: string }) {
     const roots = await ctx.fns.project.roots({});
     let rel = opts.rel;
@@ -23,6 +25,13 @@ export default async function (ctx: Context, _session: Session | null, opts: { n
     const abs = roots[0]!.dir + '/' + rel;
     const existed = await Bun.file(abs).exists();
     await Bun.write(abs, opts.code);
+
+    // Namespace lint: a bad name / collision must never enter the registry.
+    const lint = await ctx.fns.dev.lint({ silent: true });
+    if (!lint.ok) {
+        if (!existed) await rm(abs).catch(() => {});
+        throw new Error(`src/${rel} rejected by lint:\n` + lint.errors.map((e: string) => '  ✗ ' + e).join('\n'));
+    }
 
     try {
         if (entry.kind === 'fn') {

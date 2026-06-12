@@ -30,6 +30,8 @@ export default async function main() {
     const ctx = makeCtx();
     const { default: loadFns } = await import("./loadFns");
     await loadFns(ctx, null, {});
+    const lint = await ctx.fns.dev.lint({});
+    if (!lint.ok) console.error(`[boot] ${lint.errors.length} namespace lint error(s) — fix before building (see [lint] above)`);
     await ctx.genTypes({});
     await ctx.fns.http.loadRoutes({});
     await ctx.fns.http.start({});
