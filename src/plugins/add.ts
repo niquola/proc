@@ -4,7 +4,17 @@
 //   ctx.fns.plugins.add({ from: "file:./examples/hello" })     // local
 // `from` is exactly what `bun add` takes (Bun pulls the plugin's deps too).
 // Persists the entry in host package.json "proc.plugins" so boot re-mounts it.
-import { resolve } from "node:path";
+import { resolve, dirname } from "node:path";
+import { readFileSync } from "node:fs";
+
+function pluginNamespace(from: string, projectRoot: string): string | null {
+    let f = from.startsWith("file:") ? from.slice(5) : from;
+    let dir: string;
+    if (f.startsWith(".") || f.startsWith("/")) dir = resolve(projectRoot, f);
+    else { try { dir = dirname(Bun.resolveSync(f + "/package.json", projectRoot)); } catch { return null; } }
+    try { return JSON.parse(readFileSync(dir + "/package.json", "utf8")).proc?.namespace ?? null; }
+    catch { return null; }
+}
 
 export default async function (ctx: Context, _session: Session | null, opts: { from: string }) {
     if (ctx.fns.env.mode() === "prod") throw new Error("plugins.add is dev-only (loads third-party code)");
@@ -30,9 +40,7 @@ export default async function (ctx: Context, _session: Session | null, opts: { f
     await ctx.genTypes({});
     await ctx.fns.http.loadRoutes({});
 
-    const root = (await ctx.fns.project.roots({})).find((r: any) => {
-        const f = from.startsWith("file:") ? from.slice(5) : from;
-        return r.namespace && (r.dir.includes(f) || r.name === f);
-    });
-    return { installed: from, namespace: root?.namespace ?? null };
+    const namespace = pluginNamespace(from, projectRoot);
+    const mounted = (await ctx.fns.plugins.list({})).find((p: any) => p.namespace === namespace);
+    return { installed: from, namespace, fns: mounted?.fns ?? 0, routes: mounted?.routes ?? 0 };
 }

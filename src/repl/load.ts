@@ -2,7 +2,7 @@
 //   ctx.fns.repl.load({ name: "project.scan" })  → reload one fn
 //   ctx.fns.repl.load({ name: "project" })       → reload whole module
 //   ctx.fns.repl.load({ name: "genTypes" })      → reload a root $name.ts fn
-import { defineRootFn } from "../loadFns";
+import { defineRootFn, setPath, source } from "../loadFns";
 
 export default async function (ctx: Context, _session: Session | null, opts: { name: string }) {
     const target = opts.name;
@@ -16,7 +16,7 @@ export default async function (ctx: Context, _session: Session | null, opts: { n
             const m = await import((root as any).abs + `?t=${Date.now()}`);
             if (typeof m.default !== 'function') throw new Error(`${target}: no default function export`);
             defineRootFn(ctx, target, m.default);
-            console.log(`[reload] ctx.${target}  ←  ${(root as any).root}/${(root as any).rel}`);
+            console.log(`[reload] ctx.${target}  ←  ${source(root as any)}`);
             return { reloaded: target, root: true };
         }
     }
@@ -49,9 +49,6 @@ async function loadFile(ctx: Context, modPath: string, fnName: string) {
     const fn = m.default;
     if (typeof fn !== 'function') throw new Error(`${(e as any).rel}: no default function export`);
     // Raw fns live in ctx.state.registry (ctx.fns is the injecting Proxy).
-    const segs = modPath.split('/');
-    let tgt: any = (ctx.state as any).registry;
-    for (const seg of segs) tgt = (tgt[seg] = tgt[seg] || {});
-    tgt[fnName] = fn;
-    console.log(`[reload] ctx.fns.${segs.join('.')}.${fnName}  ←  ${(e as any).root}/${(e as any).rel}`);
+    setPath(ctx.state.registry, [...modPath.split('/'), fnName], fn);
+    console.log(`[reload] ctx.fns.${modPath.replaceAll('/', '.')}.${fnName}  ←  ${source(e as any)}`);
 }

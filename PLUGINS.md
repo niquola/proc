@@ -33,10 +33,11 @@ Declare them in the **host** `package.json`; `from` is exactly what `bun add` ta
 ```jsonc
 // host package.json
 { "proc": { "plugins": [
-    { "from": "proc-auth" },                  // npm
-    { "from": "github:acme/proc-billing" },   // git
-    { "from": "file:./examples/hello" }        // local path
-] } }
+    { "from": "proc-auth" },                       // npm
+    { "from": "github:acme/proc-billing" },        // git
+    { "from": "file:./examples/hello" },           // local path
+    { "from": "proc-auth", "as": "auth2" }          // `as` remounts under a different
+] } }                                               // namespace to resolve a collision
 ```
 
 Then `bun install` (pulls every plugin's deps too), and boot mounts them automatically. Or install + mount one **on the fly**, no restart:

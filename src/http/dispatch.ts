@@ -5,6 +5,8 @@
 //   expect(res.status).toBe(200); expect(await res.json()).toEqual([...]);
 //   await ctx.fns.http.dispatch({ method: "POST", url: "/issues/add", body: { title: "x" } });
 // body: object → JSON; string / FormData / URLSearchParams → sent as-is.
+import { makeRequestCtx } from "../$main";
+
 export default async function (
     ctx: Context,
     _session: Session | null,
@@ -29,8 +31,7 @@ export default async function (
 
     // Request ctx: inherits this env-ctx (so dispatch on a forked test ctx runs
     // against the test env), carries the session through the call chain.
-    const rctx: Context = Object.create(ctx);
-    (rctx as any).session = { kind: "dispatch", req, params: m.params, url: u };
+    const rctx = makeRequestCtx(ctx, { kind: "dispatch", req, params: m.params, url: u });
     const raw = await m.handler(rctx, rctx.session, { req, params: m.params });
     return ctx.fns.http.toResponse({ value: raw });
 }

@@ -13,7 +13,7 @@ export default async function (_ctx: Context, _session: Session | null, _opts?: 
     const projectRoot = resolve(srcDir, "..");
     const out: Root[] = [{ name: "src", dir: srcDir, namespace: "" }];
 
-    let specs: Array<{ from: string }> = [];
+    let specs: Array<{ from: string; as?: string }> = [];
     try {
         const pkg = JSON.parse(await Bun.file(projectRoot + "/package.json").text());
         specs = pkg.proc?.plugins ?? [];
@@ -25,7 +25,10 @@ export default async function (_ctx: Context, _session: Session | null, _opts?: 
             if (!dir) { console.warn(`[plugins] cannot resolve "${spec.from}" — run bun add first?`); continue; }
             const man = JSON.parse(await Bun.file(dir + "/package.json").text()).proc;
             if (!man?.namespace) { console.warn(`[plugins] ${spec.from}: package.json has no proc.namespace`); continue; }
-            out.push({ name: man.namespace, dir: resolve(dir, man.src ?? "src"), namespace: man.namespace });
+            // `as` lets the host remount a plugin under a different namespace to
+            // resolve a collision without touching the plugin.
+            const ns = spec.as ?? man.namespace;
+            out.push({ name: ns, dir: resolve(dir, man.src ?? "src"), namespace: ns });
         } catch (e: any) {
             console.warn(`[plugins] skip "${spec.from}": ${e?.message ?? e}`);
         }

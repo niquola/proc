@@ -29,6 +29,16 @@ function wrapFns(ctx: any, node: any): any {
     });
 }
 
+// Derive a child ctx carrying a session — used by the server, http.dispatch and
+// tests so request-scoped session construction lives in ONE place. Inherits the
+// registry/routes/env; everything the handler calls via rctx.fns.* sees this
+// session.
+export function makeRequestCtx(base: Context, session: Session): Context {
+    const c: any = Object.create(base);
+    c.session = session;
+    return c as Context;
+}
+
 export default async function main() {
     const ctx = makeCtx();
     const { default: loadFns } = await import("./loadFns");

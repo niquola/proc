@@ -1,8 +1,10 @@
+import { makeRequestCtx } from "../$main";
+
 export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
     const port = Number(ctx.env.PORT) || 3000;
     await Bun.write(".runtime/.keep", "");
     const logFile = Bun.file(".runtime/http.log").writer();
-    (ctx.state as any).http = { logFile };
+    ctx.state.http = { logFile };
 
     const server = Bun.serve({
         port,
@@ -17,8 +19,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
             }
             // Request ctx: inherits root ctx, carries the session. Everything
             // the handler calls via rctx.fns.* gets this session implicitly.
-            const rctx: Context = Object.create(ctx);
-            (rctx as any).session = { kind: 'http', req, params: m.params, url };
+            const rctx = makeRequestCtx(ctx, { kind: 'http', req, params: m.params, url });
             try {
                 const raw = await m.handler(rctx, rctx.session, { req, params: m.params });
                 const res = rctx.fns.http.toResponse({ value: raw });

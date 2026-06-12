@@ -9,7 +9,7 @@
 //   test("fib", async () => {
 //     expect(await ctx.fns.math.fib({ n: 10 })).toEqual({ n: 10, fib: 55 });
 //   });
-import { makeCtx } from "./$main";
+import { makeCtx, makeRequestCtx } from "./$main";
 import loadFns from "./loadFns";
 
 // Fresh ctx per call → test files don't leak ctx.state into each other.
@@ -31,7 +31,5 @@ export async function testCtx(): Promise<Context> {
 // Request-scoped ctx + session, for testing route handlers / things that read
 // the session (params, req). Anything it calls via ctx.fns.* sees this session.
 export function reqCtx(ctx: Context, opts?: { params?: Record<string, string>; req?: Request }): Context {
-    const r: Context = Object.create(ctx);
-    (r as any).session = { kind: "test", params: opts?.params ?? {}, req: opts?.req };
-    return r;
+    return makeRequestCtx(ctx, { kind: "test", params: opts?.params ?? {}, req: opts?.req });
 }
