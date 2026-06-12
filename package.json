@@ -3,6 +3,11 @@
   "module": "src/$main.ts",
   "type": "module",
   "private": true,
+  "proc": {
+    "plugins": [
+      { "from": "file:./examples/hello" }
+    ]
+  },
   "scripts": {
     "start": "bun src/$main.ts",
     "repl": "bun script/repl.ts",

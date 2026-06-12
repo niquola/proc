@@ -3,6 +3,8 @@
 // a tree from moduleDir segments and emit nested interface bodies (fns) and
 // nested `namespace` blocks (types). Each fn type is wrapped in Injected<> —
 // ctx/session stripped, matching the real call shape.
+import { relative } from "node:path";
+
 type Node = { fns: Record<string, string>; types: Record<string, string>; children: Record<string, Node> };
 const makeNode = (): Node => ({ fns: {}, types: {}, children: {} });
 const hasFns = (n: Node): boolean => Object.keys(n.fns).length > 0 || Object.values(n.children).some(hasFns);
@@ -31,7 +33,10 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
 
     for (const entry of entries) {
         if (entry.kind !== 'fn' && entry.kind !== 'type') continue;
-        const importPath = './' + entry.rel.replace(/\.ts$/, '');
+        // Import path is relative to src/ (where ctx_ns.d.ts lives), from the
+        // REAL file (entry.abs) — so plugin files outside src/ resolve too.
+        let importPath = relative(srcDir, (entry as any).abs).replace(/\.ts$/, '');
+        if (!importPath.startsWith('.')) importPath = './' + importPath;
         if (entry.kind === 'type') {
             typeCount++;
             if (entry.moduleDir === '.') globals.push(`    type ${entry.typeName} = import("${importPath}").${entry.typeName};`);

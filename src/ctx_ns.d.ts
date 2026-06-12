@@ -40,12 +40,20 @@ declare global {
             module: Injected<typeof import("./generate/module").default>;
             route: Injected<typeof import("./generate/route").default>;
         };
+        hello: {
+            world: Injected<typeof import("../examples/hello/src/world").default>;
+        };
         http: {
             dispatch: Injected<typeof import("./http/dispatch").default>;
             loadRoutes: Injected<typeof import("./http/loadRoutes").default>;
             match: Injected<typeof import("./http/match").default>;
             start: Injected<typeof import("./http/$start").default>;
             toResponse: Injected<typeof import("./http/toResponse").default>;
+        };
+        plugins: {
+            add: Injected<typeof import("./plugins/add").default>;
+            list: Injected<typeof import("./plugins/list").default>;
+            remove: Injected<typeof import("./plugins/remove").default>;
         };
         project: {
             classify: Injected<typeof import("./project/classify").default>;

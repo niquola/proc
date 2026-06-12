@@ -40,25 +40,18 @@ export default async function (ctx: Context, _session: Session | null, opts: { n
 }
 
 async function loadFile(ctx: Context, modPath: string, fnName: string) {
-    const candidates = [modPath + '/' + fnName + '.ts', modPath + '/$' + fnName + '.ts'];
-    for (const root of await ctx.fns.project.roots({})) {
-        for (const rel of candidates) {
-            const abs = root.dir + '/' + rel;
-            if (!(await Bun.file(abs).exists())) continue;
-            const m = await import(abs + `?t=${Date.now()}`);
-            const fn = m.default;
-            if (typeof fn !== 'function') throw new Error(`${rel}: no default function export`);
-            // Raw fns live in ctx.state.registry (ctx.fns is the injecting Proxy).
-            const segs = modPath.split('/');
-            let tgt: any = (ctx.state as any).registry;
-            for (const seg of segs) {
-                tgt[seg] = tgt[seg] || {};
-                tgt = tgt[seg];
-            }
-            tgt[fnName] = fn;
-            console.log(`[reload] ctx.fns.${segs.join('.')}.${fnName}  ←  ${root.name}/${rel}`);
-            return;
-        }
-    }
-    throw new Error(`no file for ${modPath}/${fnName}`);
+    // Look the fn up by its dotted registry path in the scan (which knows the
+    // real abs path) — works for src AND plugin files (which live outside src/).
+    const entries = await ctx.fns.project.scan({});
+    const e = entries.find((x: any) => x.kind === 'fn' && x.moduleDir === modPath && x.runtimeName === fnName);
+    if (!e) throw new Error(`no file for ${modPath}/${fnName}`);
+    const m = await import((e as any).abs + `?t=${Date.now()}`);
+    const fn = m.default;
+    if (typeof fn !== 'function') throw new Error(`${(e as any).rel}: no default function export`);
+    // Raw fns live in ctx.state.registry (ctx.fns is the injecting Proxy).
+    const segs = modPath.split('/');
+    let tgt: any = (ctx.state as any).registry;
+    for (const seg of segs) tgt = (tgt[seg] = tgt[seg] || {});
+    tgt[fnName] = fn;
+    console.log(`[reload] ctx.fns.${segs.join('.')}.${fnName}  ←  ${(e as any).root}/${(e as any).rel}`);
 }

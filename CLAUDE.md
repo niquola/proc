@@ -94,6 +94,10 @@ Two rules are **enforced by `ctx.fns.dev.lint({})`** (gated in `dev.def`/`dev.sy
 
 `ctx_ns.d.ts` is auto-generated — never edit by hand.
 
+## Plugins (src/plugins/, PLUGINS.md)
+
+A plugin is a package (local dir / npm / git) with a `proc` field in its `package.json` (`{ namespace, src }`) and a `src/` tree of normal proc functions. Declared in the **host** `package.json` `proc.plugins: [{ from }]` (`from` = a `bun add` spec). `project/roots.ts` resolves each plugin's dir and `project/scan.ts` prefixes its namespace onto each file's path before `classify` (keeping `abs` at the real file) — so plugin code merges into the **one shared `ctx.fns`** under its namespace (`auth/login.ts` → `ctx.fns.auth.login`, route → `GET /auth/...`) and flows through loadFns / genTypes / lint / loadRoutes / manifest+build unchanged. `genTypes` and `dev.manifest` import by path relative to `entry.abs`, so plugin files outside `src/` are typed and bundled into the single `dist/app.js`. `dev.lint` guards namespace collisions across plugins. Surface: `ctx.fns.plugins.add({from})` (bun add → persist → remount, dev-only), `.list({})`, `.remove({from})`. Broken plugins are logged + skipped at boot. Example: `examples/hello`. Full guide in PLUGINS.md.
+
 ## Working with types
 
 Four layers:

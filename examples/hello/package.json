@@ -1,0 +1,9 @@
+{
+  "name": "proc-hello",
+  "version": "0.1.0",
+  "private": true,
+  "proc": {
+    "namespace": "hello",
+    "src": "src"
+  }
+}

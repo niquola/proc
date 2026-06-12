@@ -4,11 +4,19 @@
 // namespace into an EXPLICIT static import graph the bundler can follow, so
 // Bun.build can collapse every module into one file.
 //   ctx.fns.dev.manifest({ out: ".runtime/build/manifest.ts" })
+import { resolve, relative } from "node:path";
+
 export default async function (ctx: Context, _session: Session | null, opts?: { out?: string }) {
     const entries = await ctx.fns.project.scan({});
     const out = opts?.out ?? ".runtime/build/manifest.ts";
-    // generated file lives at .runtime/build/manifest.ts → source is ../../src/<rel>
-    const rel = (r: string) => "../../src/" + r.replace(/\.ts$/, "");
+    // Import paths are relative to the generated file (.runtime/build/manifest.ts)
+    // from the REAL file (entry.abs) — so plugin files (in node_modules / outside
+    // src/) are bundled too.
+    const buildDir = resolve(out, "..");
+    const rel = (abs: string) => {
+        let p = relative(buildDir, abs).replace(/\.ts$/, "");
+        return p.startsWith(".") ? p : "./" + p;
+    };
 
     const imports: string[] = [];
     const fnTree: Record<string, string> = {};   // 'issues.add' -> localName
@@ -19,12 +27,12 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
     for (const e of entries) {
         if (e.kind === "fn") {
             const local = "f" + (n++);
-            imports.push(`import ${local} from "${rel(e.rel)}";`);
+            imports.push(`import ${local} from "${rel(e.abs)}";`);
             if (e.moduleDir === ".") rootFns[e.runtimeName] = local;
             else fnTree[e.moduleDir.replaceAll("/", ".") + "." + e.runtimeName] = local;
         } else if (e.kind === "route") {
             const local = "r" + (n++);
-            imports.push(`import ${local} from "${rel(e.rel)}";`);
+            imports.push(`import ${local} from "${rel(e.abs)}";`);
             routeDefs.push(`  { method: ${JSON.stringify(e.method)}, path: ${JSON.stringify(e.routePath)}, handler: ${local} },`);
         }
         // $type_ → types only, irrelevant at runtime; $script_ → Later (pre-bundle assets)
