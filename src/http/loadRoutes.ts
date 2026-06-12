@@ -1,5 +1,8 @@
 export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
-    ctx.routes = ctx.routes || {};
+    // Rebuild from scratch into a fresh map, then swap atomically — so deleted
+    // route/script files don't leave stale handlers behind (loadRoutes used to
+    // only add). The server reads ctx.routes per request, so the swap is clean.
+    const routes: Record<string, Record<string, Function>> = {};
     const entries = await ctx.fns.project.scan({});
     for (const entry of entries) {
         if (entry.kind === 'route') {
@@ -9,13 +12,13 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
                 console.warn(`[routes] skip (no default export): ${entry.root}/${entry.rel}`);
                 continue;
             }
-            const routeBucket = (ctx.routes[entry.routePath] ??= {});
+            const routeBucket = (routes[entry.routePath] ??= {});
             routeBucket[entry.method] = handler;
             console.log(`[routes] ${entry.method.padEnd(6)} ${entry.routePath}  ←  ${entry.root}/${entry.rel}`);
             continue;
         }
         if (entry.kind === 'script') {
-            const routeBucket = (ctx.routes[entry.routePath] ??= {});
+            const routeBucket = (routes[entry.routePath] ??= {});
             routeBucket.GET = async () => {
                 const built = await buildScript(entry.abs, entry.fileName);
                 return new Response(Bun.file(built), {
@@ -28,6 +31,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
             console.log(`[scripts] GET    ${entry.routePath}  ←  ${entry.root}/${entry.rel}`);
         }
     }
+    ctx.routes = routes;
     return ctx.routes;
 }
 

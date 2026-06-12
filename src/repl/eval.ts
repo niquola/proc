@@ -141,6 +141,8 @@ function lastStatementRange(code: string): { start: number; end: number } | null
         else if (ch === ')') parens = Math.max(0, parens - 1);
         else if (ch === '[') brackets++;
         else if (ch === ']') brackets = Math.max(0, brackets - 1);
+        else if (ch === '{') braces++;
+        else if (ch === '}') braces = Math.max(0, braces - 1);
         else if ((ch === ';' || ch === '\n') && parens === 0 && brackets === 0 && braces === 0) start = i + 1;
     }
 

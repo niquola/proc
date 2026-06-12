@@ -20,7 +20,7 @@ export default function (
             const p = patSegs[i]!;
             const u = urlSegs[i]!;
             if (p.startsWith(":")) {
-                params[p.slice(1)] = u;
+                params[p.slice(1)] = decodeURIComponent(u);
             } else if (p !== u) {
                 ok = false;
                 break;

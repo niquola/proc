@@ -12,7 +12,7 @@ export default function (ctx: Context, _session: Session | null, opts?: { mode?:
     const c: any = Object.create(ctx);
     c.env = { ...ctx.env, NODE_ENV, ...(opts?.env ?? {}) };
     c.state = { registry: (ctx.state as any).registry, serverStart: (ctx.state as any).serverStart }; // shared code, fresh app state
-    c.routes = ctx.routes;        // share registered handlers (dispatch matches them)
+    c.routes = { ...ctx.routes }; // copy the route map so a fork adding/removing a route can't leak to the parent (handlers are shared, the map is not)
     c.session = null;
     return c as Context;
 }

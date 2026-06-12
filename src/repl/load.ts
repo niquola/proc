@@ -1,8 +1,26 @@
 // Hot-reload functions from disk into the running process.
 //   ctx.fns.repl.load({ name: "project.scan" })  → reload one fn
 //   ctx.fns.repl.load({ name: "project" })       → reload whole module
+//   ctx.fns.repl.load({ name: "genTypes" })      → reload a root $name.ts fn
+import { defineRootFn } from "../loadFns";
+
 export default async function (ctx: Context, _session: Session | null, opts: { name: string }) {
     const target = opts.name;
+
+    // Root fn ($name.ts at src root → ctx.<name>). Without this a single-segment
+    // name fell through to the module-reload loop and silently did nothing.
+    const entries = await ctx.fns.project.scan({});
+    if (!target.includes('.')) {
+        const root = entries.find((e: any) => e.kind === 'fn' && e.moduleDir === '.' && e.runtimeName === target);
+        if (root) {
+            const m = await import((root as any).abs + `?t=${Date.now()}`);
+            if (typeof m.default !== 'function') throw new Error(`${target}: no default function export`);
+            defineRootFn(ctx, target, m.default);
+            console.log(`[reload] ctx.${target}  ←  ${(root as any).root}/${(root as any).rel}`);
+            return { reloaded: target, root: true };
+        }
+    }
+
     if (target.includes('.')) {
         const segs = target.split('.');
         const fnName = segs.pop()!;
@@ -11,7 +29,6 @@ export default async function (ctx: Context, _session: Session | null, opts: { n
         return { reloaded: target };
     }
 
-    const entries = await ctx.fns.project.scan({});
     const loaded: string[] = [];
     for (const entry of entries) {
         if (entry.kind !== 'fn') continue;
