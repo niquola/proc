@@ -237,6 +237,30 @@ const res = await t.fns.http.dispatch({ url: "/issues" });   // runs in the test
 
 `testCtx()` sets `NODE_ENV=test`; the prod bundle sets `production`; `bun src/$main.ts` is dev. Mechanism: the `ctx.fns` Proxy injects the ctx you call through and reads `this.state.registry`, so a derived ctx (`Object.create` + own `env`/`state`, registry carried over) resolves the same functions but in its own world.
 
+### Config & secrets — `.env` files
+
+Bun auto-loads `.env` files at process start, selecting by the **process** `NODE_ENV`. `makeCtx` copies `process.env` into `ctx.env`, so whatever Bun loaded is on `ctx.env`:
+
+| Run | process NODE_ENV | files Bun loads (later wins) |
+|---|---|---|
+| `bun test` | `test` (auto) | `.env`, `.env.test`, `.env.test.local` |
+| `bun src/$main.ts` | unset → dev | `.env`, `.env.development`, `.env.local` |
+| `NODE_ENV=production bun dist/app.js` | `production` | `.env`, `.env.production`, `.env.production.local` |
+
+So **`.env.test` "just works" for `bun test`** — verified. Convention: commit non-secret defaults in `.env.development` / `.env.test`; keep secrets in `.env.local` / `.env.*.local` (gitignored; `.env` itself is gitignored too). `.env.local` is skipped under test.
+
+Caveat: `.env` selection happens **at process start**, before our code runs, so a forked test env inside a dev process (`env.fork`) does NOT retroactively load `.env.test` — it inherits the dev process's vars. For per-ctx values that differ from the process env, use `ctx.fns.env.pick({...})` (config-by-function) or `env.fork({ mode, env: { KEY: "..." } })` to override specific vars on the forked ctx.
+
+## Persistence — example db module (src/db/)
+
+Not core, but the canonical example of env-aware, ctx-scoped state. A thin `bun:sqlite` layer whose **connection lives in `ctx.state.db`** (per-ctx, not a module global) — so `env.fork` gives each environment an isolated database:
+
+- `db.url()` → `env.pick({ test: ":memory:", dev: "data/dev.sqlite", prod: ctx.env.DATABASE_URL })`
+- `db.conn()` → lazily opens + caches the `Database` on `ctx.state.db`
+- `db.query/run/exec/close` — thin helpers (positional `[..]` or named `{$x}` params)
+
+`src/todos/` is an example domain on top (`migrate/add/list` + `GET /todos`). Tested in-memory with no server (see `src/db.test.ts`, `src/todos.test.ts`): `env.fork` → two isolated connections proves the db is ctx-scoped.
+
 ## Events / SSE (src/events/)
 
 In-process pub/sub + a stream to the browser:
