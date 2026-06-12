@@ -56,6 +56,24 @@ await ctx.fns.dev.sync({ rel: "notes/add.ts" })
 ctx.fns.dev.typecheck({ filter: "notes/" })   // → { ok, errors: ["file(line,col): TS..."] }
 ```
 
+## Architecture
+
+The whole system is one object — `ctx` — filled from the filesystem by a uniform pipeline:
+
+```
+            DISCOVER                    REGISTER                  SERVE / RUN
+ roots ─► scan ─► classify ─┬─► loadFns ──► ctx.state.registry ◄─ ctx.fns  (Proxy: injects ctx+session)
+ (src + plugins) (name→kind) ├─► genTypes ─► ctx_ns.d.ts (types)
+                            ├─► loadRoutes ► ctx.routes ◄──────── Bun.serve / http.dispatch
+                            └─► lint        (identifiers, no fn↔namespace collision)
+```
+
+- **`ctx` is the spine.** `ctx.state` (registry, db, events, server, …), `ctx.routes`, `ctx.env`, `ctx.session`, and `ctx.fns` — an injecting Proxy over the registry. The Proxy reads `this`, so any derived ctx (`Object.create` + own session/env/state) injects itself; this one trick powers request sessions, REPL eval, and `env.fork` (a test env beside dev in one process).
+- **Discovery is uniform.** Plugins are just extra roots with a namespace; `scan` prefixes it before `classify`, so app code, plugins, types, routes and the build all flow through the *same* entries — no special plugin path.
+- **A request:** `Bun.serve` → `http.match` → request ctx (with session) → handler → `http.toResponse` (string→HTML, object→JSON). `http.dispatch` is the same, in-process, no socket — that's how REST is tested.
+- **A code change:** write a file → `dev.def`/`dev.sync` re-imports it into the live registry → regenerate types + routes → SSE reloads tabs. **The process never restarts.**
+- **Dev vs prod:** the same scan that fills the registry at runtime is, at build time, emitted as a static import graph and frozen by `Bun.build` into one file.
+
 ## The dev loop
 
 ```sh
@@ -93,19 +111,23 @@ The bundle runs in `NODE_ENV=production` — dev machinery (scan/watch/genTypes)
 src/
 ├── $main.ts            # boot: makeCtx (injecting Proxy) → loadFns → genTypes → routes → serve
 ├── $layout.ts          # HTML shell (Tailwind + htmx + SSE client)
-├── $type_Context.ts    # global Context type
-├── $type_Session.ts    # global Session type
+├── $type_Context.ts    # global Context / CtxState   ($type_Session.ts: Session)
 ├── ctx_ns.d.ts         # AUTO-GENERATED typed registry
-├── project/            # scan + classify: file name conventions
-├── http/               # Bun.serve, file-name routing, :params, response auto-wrapping
-├── repl/               # eval (last expression = value), hot-reload, POST /repl
-├── $test.ts            # test harness: testCtx() gives a loaded ctx, no server
-├── dev/                # def, sync, typecheck, test, watch (opt-in), manifest + build
+├── loadFns.ts          # register fns into ctx.state.registry (setPath, defineRootFn)
+├── genTypes.ts         # scan → ctx_ns.d.ts (typed FnsRegistry, nested namespaces)
+├── project/            # roots (src + plugins) · scan · classify (file-name conventions)
+├── http/               # Bun.serve · match (:params) · dispatch (in-process) · toResponse
+├── repl/               # eval (last expression = value) · hot-reload · POST /repl
+├── dev/                # def · sync · lint · typecheck · test · watch · manifest + build
+├── env/                # mode · pick · fork (per-ctx test/dev/prod, coexisting)
 ├── events/             # SSE pub/sub, browser auto-reload
-└── generate/           # fn / route / module scaffolding
+├── plugins/            # add / list / remove — mount packages into ctx.fns (see PLUGINS.md)
+├── generate/           # fn / route / module scaffolding
+├── db/  todos/         # examples: bun:sqlite (connection in ctx.state.db) + a domain on it
+└── $test.ts            # test harness: testCtx() gives a loaded ctx, no server
 ```
 
-~1300 lines total, zero runtime dependencies beyond Bun itself.
+~1700 lines of framework, zero runtime dependencies beyond Bun itself.
 
 Handlers return whatever is convenient: a `Response` passes through, a `string` becomes an HTML page via the layout, `{ main, title }` likewise, anything else becomes JSON.
 

@@ -52,6 +52,34 @@ HTTP handlers share the signature: `(ctx, session, opts: { req, params })`. The 
 
 `Context`, `Session`, `FnsRegistry`, `RootFns` are global types — no imports needed. Inside a function, call neighbors via `ctx.fns.x.y({...})` — don't pass the session, it flows by itself. Explicit raw arguments are only needed on direct imports (bootstrap in loadFns/scan).
 
+## Architecture
+
+The whole system is one object — `ctx` — and a pipeline that fills it from the filesystem.
+
+```
+              DISCOVER                      REGISTER                    SERVE / RUN
+  roots ──► scan ──► classify ──┬─► loadFns ──► ctx.state.registry ◄── ctx.fns (Proxy, injects ctx+session)
+  (src + plugins)   (name→kind) ├─► genTypes ─► ctx_ns.d.ts (types)
+                                ├─► loadRoutes ► ctx.routes ◄────────── http.$start (Bun.serve) / http.dispatch
+                                └─► lint (guard: identifiers, no fn↔ns collision)
+```
+
+**`ctx` is the spine.** One shape, threaded everywhere:
+- `ctx.state` — per-ctx world: `registry` (the raw fn tree), `db`, `events` subs, `server`, `dev.errors`, app/plugin state.
+- `ctx.routes` — `path → method → handler`.
+- `ctx.env` / `ctx.session` — environment vars and the current request/eval session.
+- `ctx.fns` — an injecting **Proxy** over `ctx.state.registry`: reading `ctx.fns.a.b` and calling it runs `rawB(ctx, ctx.session, opts)`. Root `$name.ts` fns are injecting getters directly on `ctx`. The getter reads `this`, so any **derived** ctx (`Object.create` + own session/env/state) injects itself — this single mechanism powers request sessions, REPL eval, and `env.fork`.
+
+**Discovery is uniform.** `roots` returns `src/` (namespace `""`) plus each plugin's dir (namespace from its manifest). `scan` globs every root and, for plugins, prefixes the namespace onto the path before `classify` (keeping `abs` at the real file). So plugins, the app, types, routes, and the build all flow through the *same* entries — there is no special plugin code path.
+
+**Two lifecycles:**
+- *A request* (http/$start.ts): `Bun.serve` → `http.match` → `makeRequestCtx(ctx, session{req,params})` → handler → `http.toResponse` (string→HTML via `ctx.layout`, object→JSON). `http.dispatch` is the same minus the socket (used by tests / sub-requests).
+- *A code change* (dev): write a file → `dev.def`/`dev.sync` → `repl.load` re-imports it (cache-busted) and `setPath`s it into the live `registry` → `genTypes` + `loadRoutes` → SSE reloads browser tabs. **The process never restarts**; the running image is edited in place.
+
+**Dev vs prod is discovery, frozen.** Dev fills the registry at runtime via dynamic `import(abs+'?t=…')` (un-bundleable → hot-reload). `dev.build` runs the *same* scan but emits a **static** import manifest, which `Bun.build` collapses into one self-contained `dist/app.js` — no scan, no dynamic import, dev tooling (watch/repl/genTypes) gone, `/repl` gated to 403.
+
+**Layers** (each a `ctx.fns.<ns>`): `project` (discover) · core `loadFns`/`genTypes` (register/type) · `http` (serve/match/dispatch/wrap) · `repl` (eval/hot-reload) · `dev` (def/sync/lint/typecheck/build/manifest/watch/test) · `env` (mode/pick/fork) · `events` (SSE) · `generate` (scaffold) · `plugins` (mount). Domain modules (`db`, `todos`, …) and plugins sit on top, calling down through `ctx.fns` — **never importing each other**, which is what keeps everything hot-swappable and bundleable.
+
 ## File-name conventions (src/project/classify.ts)
 
 | File | What it is | Registered as |
