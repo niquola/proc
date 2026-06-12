@@ -76,6 +76,17 @@ One round-trip: define → registered → tested. The response is either the res
 
 This loop is designed for AI agents as much as for humans: an agent talks to the live system through `POST /repl` (loopback-only, disabled in production), defines functions, inspects state, runs typecheck — all without touching a terminal beyond one curl.
 
+## Production build
+
+Dev discovers the registry at runtime (scan + dynamic import — un-bundleable, which is what powers hot-reload). The build freezes that discovered namespace into a static import manifest, then `Bun.build` collapses everything into one self-contained file:
+
+```sh
+bun script/repl.ts 'ctx.fns.dev.build({})'   # → dist/app.js (~23 KB)
+bun dist/app.js                               # standalone: no src/, no node_modules, no scan
+```
+
+The bundle runs in `NODE_ENV=production` — dev machinery (scan/watch/genTypes) is gone and `/repl` is 403. Same registry, frozen. (One scan, two emitters: `genTypes` emits *types*, `dev.manifest` emits *values*.)
+
 ## What's inside
 
 ```
@@ -88,7 +99,7 @@ src/
 ├── project/            # scan + classify: file name conventions
 ├── http/               # Bun.serve, file-name routing, :params, response auto-wrapping
 ├── repl/               # eval (last expression = value), hot-reload, POST /repl
-├── dev/                # def, sync, typecheck, watch (opt-in)
+├── dev/                # def, sync, typecheck, watch (opt-in), manifest + build
 ├── events/             # SSE pub/sub, browser auto-reload
 └── generate/           # fn / route / module scaffolding
 ```

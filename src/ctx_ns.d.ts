@@ -8,7 +8,9 @@ declare global {
 
     interface FnsRegistry {
         dev: {
+        build: Injected<typeof import("./dev/build").default>;
         def: Injected<typeof import("./dev/def").default>;
+        manifest: Injected<typeof import("./dev/manifest").default>;
         sync: Injected<typeof import("./dev/sync").default>;
         typecheck: Injected<typeof import("./dev/typecheck").default>;
         watch: Injected<typeof import("./dev/watch").default>;

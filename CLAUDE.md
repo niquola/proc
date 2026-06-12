@@ -141,6 +141,22 @@ EOF
 ```
 The response is either `return` with the verification result (everything loaded) or `error` (nothing registered). There is no third state.
 
+## Production build (src/dev/build.ts, src/dev/manifest.ts)
+
+Dev populates the registry at runtime via `scan()` + dynamic `import(abs + '?t=...')` — those imports are deliberately un-bundleable (that's what powers hot-reload). The build **freezes the discovered namespace into a static import graph** the bundler can follow, then `Bun.build` collapses every module + Bun-bundled deps into ONE self-contained file. Same registry shape both ways — only how it's populated differs.
+
+```sh
+bun script/repl.ts 'ctx.fns.dev.build({})'   # → dist/app.js (one file, ~23 KB)
+bun dist/app.js                               # runs standalone: no src/, no node_modules
+```
+
+- `ctx.fns.dev.manifest({ out? })` — the build-time twin of loadFns/loadRoutes: walks `scan()` and emits `.runtime/build/manifest.ts` with a **static** `import` per fn/route + a `registry`/`rootFns`/`routeDefs` literal. (This is `genTypes` with a different emitter: **one scan, two emitters** — genTypes emits *types*, manifest emits *values*.)
+- `ctx.fns.dev.build({ outdir? })` — runs manifest, writes a prod entry that does `makeCtx()` → assign the static `registry` → `defineRootFn` the root fns → wire `routeDefs` into `ctx.routes` → `http.start`, then `Bun.build({ entrypoints: [main], target: 'bun', minify: true })` → `dist/app.js`.
+
+The bundle sets `NODE_ENV=production`, so the dev machinery is gone by construction: no scan, no dynamic import, no genTypes/watch at boot, and `/repl` returns 403. Fast cold start, single deployable artifact.
+
+Current limits (Later): `$script_*` browser assets aren't pre-bundled into the artifact, and routes that read sibling files via `import.meta.dir` (e.g. `events/$route_client.js_GET.ts`) break in the bundle — inline such assets (Bun `with { type: "text" }`) or pre-build them. Types are stripped (a runtime concern they aren't).
+
 ## Watcher (src/dev/watch.ts) — opt-in, for editor-driven changes
 
 `WATCH=1 bun src/$main.ts` — the server watches `src/`: **save a file → it's live**. Off by default (the agent's primary path is `dev.def`; the watcher is async — there is a race between writing and loading):
