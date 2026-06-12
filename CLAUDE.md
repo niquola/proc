@@ -78,7 +78,7 @@ The whole system is one object — `ctx` — and a pipeline that fills it from t
 
 **Dev vs prod is discovery, frozen.** Dev fills the registry at runtime via dynamic `import(abs+'?t=…')` (un-bundleable → hot-reload). `dev.build` runs the *same* scan but emits a **static** import manifest, which `Bun.build` collapses into one self-contained `dist/app.js` — no scan, no dynamic import, dev tooling (watch/repl/genTypes) gone, `/repl` gated to 403.
 
-**Layers** (each a `ctx.fns.<ns>`): `project` (discover) · core `loadFns`/`genTypes` (register/type) · `http` (serve/match/dispatch/wrap) · `repl` (eval/hot-reload) · `dev` (def/sync/lint/typecheck/build/manifest/watch/test) · `env` (mode/pick/fork) · `events` (SSE) · `generate` (scaffold) · `plugins` (mount). Domain modules (`db`, `todos`, …) and plugins sit on top, calling down through `ctx.fns` — **never importing each other**, which is what keeps everything hot-swappable and bundleable.
+**Layers** (each a `ctx.fns.<ns>`): `project` (discover) · core `loadFns`/`genTypes` (register/type) · `http` (serve/match/dispatch/wrap) · `repl` (eval/hot-reload) · `dev` (def/sync/lint/typecheck/build/manifest/watch/test) · `env` (mode/pick/fork) · `config` (typed/validated) · `lifecycle` (start/stop) · `events` (SSE) · `generate` (scaffold) · `plugins` (mount) · `db` (persistence). **Apps live in `examples/` as plugins** (`hello`, `todo`) — out of core; they call down through `ctx.fns` and **never import each other**, which is what keeps everything hot-swappable and bundleable.
 
 ## File-name conventions (src/project/classify.ts)
 
@@ -317,7 +317,7 @@ Not core, but the canonical example of env-aware, ctx-scoped state. A thin `bun:
 - `db.conn()` → lazily opens + caches the `Database` on `ctx.state.db`
 - `db.query/run/exec/close` — thin helpers (positional `[..]` or named `{$x}` params)
 
-`src/todos/` is an example domain on top (`migrate/add/list` + `GET /todos`). Tested in-memory with no server (see `src/db.test.ts`, `src/todos.test.ts`): `env.fork` → two isolated connections proves the db is ctx-scoped.
+`examples/todo/` is an example app (a plugin) on top of `db` — htmx + Tailwind UI (`migrate/add/list/toggle/remove/render` + `/todo` routes). Tested in-memory with no server (`examples/todo/src/todo.test.ts`, `src/db.test.ts`): `testCtx` sets `DATABASE_URL=:memory:` (env-through-config), and `env.fork` → two isolated connections proves the db is ctx-scoped.
 
 ## Events / SSE (src/events/)
 
