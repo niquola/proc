@@ -8,36 +8,36 @@ declare global {
 
     interface FnsRegistry {
         dev: {
-        build: Injected<typeof import("./dev/build").default>;
-        def: Injected<typeof import("./dev/def").default>;
-        manifest: Injected<typeof import("./dev/manifest").default>;
-        sync: Injected<typeof import("./dev/sync").default>;
-        typecheck: Injected<typeof import("./dev/typecheck").default>;
-        watch: Injected<typeof import("./dev/watch").default>;
+            build: Injected<typeof import("./dev/build").default>;
+            def: Injected<typeof import("./dev/def").default>;
+            manifest: Injected<typeof import("./dev/manifest").default>;
+            sync: Injected<typeof import("./dev/sync").default>;
+            typecheck: Injected<typeof import("./dev/typecheck").default>;
+            watch: Injected<typeof import("./dev/watch").default>;
         };
         events: {
-        emit: Injected<typeof import("./events/emit").default>;
-        reload: Injected<typeof import("./events/reload").default>;
-        subscribe: Injected<typeof import("./events/subscribe").default>;
+            emit: Injected<typeof import("./events/emit").default>;
+            reload: Injected<typeof import("./events/reload").default>;
+            subscribe: Injected<typeof import("./events/subscribe").default>;
         };
         generate: {
-        fn: Injected<typeof import("./generate/fn").default>;
-        module: Injected<typeof import("./generate/module").default>;
-        route: Injected<typeof import("./generate/route").default>;
+            fn: Injected<typeof import("./generate/fn").default>;
+            module: Injected<typeof import("./generate/module").default>;
+            route: Injected<typeof import("./generate/route").default>;
         };
         http: {
-        loadRoutes: Injected<typeof import("./http/loadRoutes").default>;
-        match: Injected<typeof import("./http/match").default>;
-        start: Injected<typeof import("./http/$start").default>;
+            loadRoutes: Injected<typeof import("./http/loadRoutes").default>;
+            match: Injected<typeof import("./http/match").default>;
+            start: Injected<typeof import("./http/$start").default>;
         };
         project: {
-        classify: Injected<typeof import("./project/classify").default>;
-        roots: Injected<typeof import("./project/roots").default>;
-        scan: Injected<typeof import("./project/scan").default>;
+            classify: Injected<typeof import("./project/classify").default>;
+            roots: Injected<typeof import("./project/roots").default>;
+            scan: Injected<typeof import("./project/scan").default>;
         };
         repl: {
-        eval: Injected<typeof import("./repl/eval").default>;
-        load: Injected<typeof import("./repl/load").default>;
+            eval: Injected<typeof import("./repl/eval").default>;
+            load: Injected<typeof import("./repl/load").default>;
         };
     }
 
