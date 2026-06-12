@@ -190,6 +190,26 @@ Typical dev cycle:
 bun script/repl.ts 'ctx.fns.foo.bar({...})'
 ```
 
+## Testing (src/$test.ts, src/dev/test.ts)
+
+Co-located `*.test.ts`, run with `bun test` (the scanner skips them, so they're never registered; `$test.ts` is reserved/skipped too). Two tiers, **same naming, one rule**: `X.test.ts` tests `X` — and because the lint guarantees a name is *either* a function *or* a namespace, never both, the target is unambiguous:
+
+- **Unit** — `src/<path>/<fn>.test.ts` next to `<fn>.ts`. Tests one function. (e.g. `src/http/match.test.ts`, `src/dev/lint.test.ts`)
+- **Functional** — `src/<ns>.test.ts` next to the `<ns>/` directory. Tests the namespace's functions working together — state, events, routes, multi-fn flows. (e.g. `src/project.test.ts`, `src/events.test.ts`)
+
+The harness gives each test a real `ctx` with the full registry loaded but no server/watcher:
+
+```ts
+import { test, expect } from "bun:test";
+import { testCtx } from "../$test";       // ./$test from src/ root
+const ctx = await testCtx();              // fresh ctx per call — no ctx.state leak between files
+test("fib", async () => {
+    expect(await ctx.fns.math.fib({ n: 10 })).toEqual({ n: 10, fib: 55 });
+});
+```
+
+Call functions idiomatically through `ctx.fns.*` (injection works in tests too). `reqCtx(ctx, { params, req })` builds a request-scoped ctx+session for testing route handlers. Run from the REPL with `ctx.fns.dev.test({ filter? })` (spawns `bun test` in a separate process — symmetric with `dev.typecheck`); `filter` is bun test's path/name filter, so `dev.test({ filter: "billing" })` runs that namespace's unit + functional tests.
+
 ## Events / SSE (src/events/)
 
 In-process pub/sub + a stream to the browser:

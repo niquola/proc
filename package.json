@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "start": "bun src/$main.ts",
-    "repl": "bun script/repl.ts"
+    "repl": "bun script/repl.ts",
+    "test": "bun test"
   },
   "devDependencies": {
     "@types/bun": "latest"

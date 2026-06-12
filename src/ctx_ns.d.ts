@@ -13,6 +13,7 @@ declare global {
             lint: Injected<typeof import("./dev/lint").default>;
             manifest: Injected<typeof import("./dev/manifest").default>;
             sync: Injected<typeof import("./dev/sync").default>;
+            test: Injected<typeof import("./dev/test").default>;
             typecheck: Injected<typeof import("./dev/typecheck").default>;
             watch: Injected<typeof import("./dev/watch").default>;
         };
