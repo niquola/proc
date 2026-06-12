@@ -1,4 +1,4 @@
-// Example domain on top of db/. Idempotent schema.
+// Idempotent schema — the plugin owns its table, on the host's db (ctx.fns.db).
 export default function (ctx: Context, _session: Session | null, _opts?: {}) {
     ctx.fns.db.exec({
         sql: `CREATE TABLE IF NOT EXISTS todos (

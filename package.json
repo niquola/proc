@@ -9,7 +9,8 @@
       "http": { "port": 47393 }
     },
     "plugins": [
-      { "from": "file:./examples/hello" }
+      { "from": "file:./examples/hello" },
+      { "from": "file:./examples/todo" }
     ]
   },
   "scripts": {

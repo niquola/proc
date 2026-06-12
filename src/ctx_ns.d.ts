@@ -74,10 +74,13 @@ declare global {
             eval: Injected<typeof import("./repl/eval").default>;
             load: Injected<typeof import("./repl/load").default>;
         };
-        todos: {
-            add: Injected<typeof import("./todos/add").default>;
-            list: Injected<typeof import("./todos/list").default>;
-            migrate: Injected<typeof import("./todos/migrate").default>;
+        todo: {
+            add: Injected<typeof import("../examples/todo/src/add").default>;
+            list: Injected<typeof import("../examples/todo/src/list").default>;
+            migrate: Injected<typeof import("../examples/todo/src/migrate").default>;
+            remove: Injected<typeof import("../examples/todo/src/remove").default>;
+            render: Injected<typeof import("../examples/todo/src/render").default>;
+            toggle: Injected<typeof import("../examples/todo/src/toggle").default>;
         };
     }
 
