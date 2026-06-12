@@ -1,7 +1,7 @@
 import { makeRequestCtx } from "../$main";
 
 export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
-    const port = Number(ctx.env.PORT) || 3000;
+    const port = (ctx.fns.config.resolve({ module: "http" }) as ConfigOf<typeof import("./$config").default>).port;
     await Bun.write(".runtime/.keep", "");
     const logFile = Bun.file(".runtime/http.log").writer();
     ctx.state.http = { logFile };

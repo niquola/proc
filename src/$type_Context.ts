@@ -4,6 +4,27 @@
 // Proxy reads it), so a derived ctx (request / env.fork) carrying its own state
 // stays self-consistent.
 declare global {
+    // Config schema (context-clj style): per-param type + rules. A module declares
+    // one in `module/$config.ts`; ctx.fns.config.resolve coerces + validates the
+    // values that come from package.json proc.prod.<module> and env vars.
+    type ConfigParam = {
+        type: "string" | "string[]" | "integer" | "number" | "boolean" | "map";
+        required?: boolean;
+        default?: any;
+        env?: string;            // explicit env var name (default: <MODULE>__<KEY>)
+        sensitive?: boolean;
+        validator?: (v: any) => boolean;
+    };
+    type ConfigSchema = Record<string, ConfigParam>;
+    type ConfigValue<T> =
+        T extends "string" ? string :
+        T extends "string[]" ? string[] :
+        T extends "integer" | "number" ? number :
+        T extends "boolean" ? boolean :
+        T extends "map" ? Record<string, any> : unknown;
+    // Derives the typed config object from a schema: ConfigOf<typeof schema>.
+    type ConfigOf<S extends ConfigSchema> = { [K in keyof S]: ConfigValue<S[K]["type"]> };
+
     interface CtxState {
         registry: Record<string, any>;
         serverStart?: number;
@@ -12,6 +33,7 @@ declare global {
         events?: { subs: Set<(e: any) => void> };
         middleware?: Array<{ prefix: string; segs: string[]; handler: Function }>;
         lifecycle?: { started: string[] };
+        configSchemas?: Record<string, ConfigSchema>;
         dev?: { errors: Map<string, string> };
         watcher?: any;
         db?: import("bun:sqlite").Database;

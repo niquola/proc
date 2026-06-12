@@ -10,6 +10,7 @@ export type ProjectEntry =
     | { kind: "middleware"; rel: string; moduleDir: string; fileName: string; prefix: string }
     | { kind: "state"; rel: string; moduleDir: string; fileName: string; stateKey: string }
     | { kind: "lifecycle"; rel: string; moduleDir: string; fileName: string; hook: "start" | "stop" }
+    | { kind: "config"; rel: string; moduleDir: string; fileName: string }
     | { kind: "skip"; rel: string; moduleDir: string; fileName: string; reason: string };
 
 export default function (_ctx: Context, _session: Session | null, opts: { rel: string }): ProjectEntry {
@@ -70,10 +71,15 @@ export default function (_ctx: Context, _session: Session | null, opts: { rel: s
     }
 
     // $start.ts / $stop.ts → module lifecycle hooks (init / teardown of ctx),
-    // run by ctx.fns.lifecycle.* in the order declared in package.json proc.start.
+    // run by ctx.fns.lifecycle.* in the order declared in package.json proc.prod.
     if (stem === '$start' || stem === '$stop') {
         return { kind: 'lifecycle', rel, moduleDir, fileName, hook: stem.slice(1) as 'start' | 'stop' };
     }
+
+    // $config.ts → a module's config schema (default-exports a ConfigSchema).
+    // Collected into ctx.state.configSchemas; modules never import it — they
+    // read config via ctx.fns.config.resolve({ module }).
+    if (stem === '$config') return { kind: 'config', rel, moduleDir, fileName };
 
     const runtimeName = stem.startsWith('$') ? stem.slice(1) : stem;
     return { kind: 'fn', rel, moduleDir, fileName, runtimeName };

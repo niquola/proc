@@ -11,7 +11,13 @@ export default function (ctx: Context, _session: Session | null, opts?: { mode?:
     const NODE_ENV = mode === "prod" ? "production" : mode === "test" ? "test" : "development";
     const c: any = Object.create(ctx);
     c.env = { ...ctx.env, NODE_ENV, ...(opts?.env ?? {}) };
-    c.state = { registry: (ctx.state as any).registry, serverStart: (ctx.state as any).serverStart }; // shared code, fresh app state
+    // Shared framework metadata (code & schemas), but FRESH app state (db
+    // connection, events, caches) — so a fork is isolated where it matters.
+    c.state = {
+        registry: ctx.state.registry,
+        serverStart: ctx.state.serverStart,
+        configSchemas: ctx.state.configSchemas,
+    };
     c.routes = { ...ctx.routes }; // copy the route map so a fork adding/removing a route can't leak to the parent (handlers are shared, the map is not)
     c.session = null;
     return c as Context;

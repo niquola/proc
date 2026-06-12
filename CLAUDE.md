@@ -90,6 +90,8 @@ The whole system is one object — `ctx` — and a pipeline that fills it from t
 | `module/$route_<path>_<METHOD>.ts` | HTTP route | `METHOD /module/<path>` |
 | `module/$middleware[_<path>].ts` | middleware | runs before handlers under `/module[/<path>]/*` |
 | `module/$state_<key>.ts` | typed state slot | types `ctx.state.<key>` (file exports `type <key>`) |
+| `module/$start.ts` / `$stop.ts` | lifecycle hooks | run at boot / shutdown (`ctx.fns.lifecycle.*`) |
+| `module/$config.ts` | config schema | validated config via `ctx.fns.config.resolve({module})` |
 | `module/$script_name.js\|.css` | browser asset | `GET /module/name.js` (bundled by Bun.build on request) |
 | `*.test.ts`, `*.entry.ts`, `*.d.ts`, `$main.ts` | skipped | — |
 
@@ -158,6 +160,18 @@ Limitation: code executed in the REPL buffer is never typechecked (only transpil
   - `{ main, title?, status? }` → HTML via layout
   - anything else → JSON
 - `$layout.ts` — HTML shell (Tailwind CDN + htmx + `/events/client.js`)
+
+## Lifecycle & config (src/lifecycle/, src/config/) — adopted from context-clj
+
+**Lifecycle** — a module's `$start.ts` `(ctx, config)` runs at boot; it may **return a state object** merged into `ctx.state.<module>` (and handed back to `$stop`). `$stop.ts` `(ctx, state)` tears down. Run by `ctx.fns.lifecycle.start/stop` in the order declared in **package.json `proc.prod`** (its keys are the system modules; started in key order, `http` last; `$stop` in reverse on SIGINT/SIGTERM). Idempotent; on a `$start` failure, already-started modules are stopped (rollback). The server and the db are themselves lifecycle modules: `http/$start.ts` (Bun.serve) + `http/$stop.ts`; `db/$start.ts` (connect) + `db/$stop.ts` (close). So boot is uniform: `loadFns → genTypes → loadRoutes → lifecycle.start`.
+
+**Config** — `module/$config.ts` default-exports a `ConfigSchema` (`{ param: { type, required?, default?, env?, validator? } }`; types `string|string[]|integer|number|boolean|map`). A module reads its config via `ctx.fns.config.resolve({ module })` — **never importing `$config`** (schemas are collected into `ctx.state.configSchemas` at boot; the `ConfigOf<typeof import("./$config").default>` cast for the *type* is erased at runtime). **Env enters through config**: values resolve `defaults < package.json proc.prod.<module> < env` (env var `<MODULE>__<KEY>` or `schema.env`), are **coerced** (string→int/bool/array/map) and **validated** (required/type/custom) — invalid config throws, so a bad `$start` fails loudly. So modules read `ctx.fns.config.resolve`, not `ctx.env`.
+
+```jsonc
+// package.json — the system manifest: which modules + their config
+"proc": { "prod": { "db": { "url": "data/dev.sqlite" }, "http": { "port": 47393 } }, "plugins": [ … ] }
+```
+`db/$config.ts` → `{ url: { type: "string", required: true, default: "data/dev.sqlite", env: "DATABASE_URL" } } as const satisfies ConfigSchema`. In prod `DATABASE_URL`/`PORT` env override; the schema is baked into the bundle.
 
 ## Middleware & typed state
 

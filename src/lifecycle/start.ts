@@ -13,9 +13,10 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
         const e = entries.find((x: any) => x.kind === "lifecycle" && x.hook === "start" && x.moduleDir === mod);
         if (!e) continue; // module has no $start — nothing to init
         try {
+            // Each module resolves its OWN config (ctx.fns.config.resolve) inside
+            // $start, so the bundle works without a config-injection step.
             const fn = (await import((e as any).abs + `?t=${Date.now()}`)).default;
-            const config = await ctx.fns.lifecycle.config({ module: mod });
-            const state = await fn(ctx, null, config);
+            const state = await fn(ctx, null, {});
             if (state && typeof state === "object") Object.assign((ctx.state[mod] ??= {}), state);
             life.started.push(mod);
             console.log(`[lifecycle] started ${mod}`);

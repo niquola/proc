@@ -1,9 +1,6 @@
-// The database location, chosen by environment (config is just a function).
-//   test → in-memory (isolated, fast)   dev → a local file   prod → $DATABASE_URL
+// The database location — resolved through the config system (defaults <
+// package.json proc.prod.db < env DATABASE_URL). No import: the schema flows
+// through ctx.state (the `import(...)` below is type-only and erased at runtime).
 export default function (ctx: Context, _session: Session | null, _opts?: {}): string {
-    return ctx.fns.env.pick({
-        test: ":memory:",
-        dev: "data/dev.sqlite",
-        prod: ctx.env.DATABASE_URL ?? "data/prod.sqlite",
-    });
+    return (ctx.fns.config.resolve({ module: "db" }) as ConfigOf<typeof import("./$config").default>).url;
 }

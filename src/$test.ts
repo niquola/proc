@@ -19,6 +19,7 @@ import loadFns from "./loadFns";
 export async function testCtx(): Promise<Context> {
     const ctx = makeCtx();
     ctx.env.NODE_ENV = "test";
+    ctx.env.DATABASE_URL = ":memory:"; // test db, via config (env enters through config)
     const log = console.log;
     console.log = () => {};
     try {

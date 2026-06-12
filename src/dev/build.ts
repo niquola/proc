@@ -7,11 +7,12 @@
 const MAIN_TEMPLATE = `// AUTO-GENERATED prod entry — Bun.build bundles this + everything it imports.
 import { makeCtx } from "../../src/$main";
 import { defineRootFn } from "../../src/loadFns";
-import { registry, rootFns, routeDefs, middlewareDefs, lifecycleDefs, startOrder } from "./manifest";
+import { registry, rootFns, routeDefs, middlewareDefs, lifecycleDefs, startOrder, configSchemas } from "./manifest";
 
 const ctx = makeCtx();
 ctx.env.NODE_ENV = ctx.env.NODE_ENV ?? "production"; // disables /repl, error stacks
 ctx.state.registry = registry;                        // static registry — no scan()
+ctx.state.configSchemas = configSchemas;              // module config schemas (env-driven in prod)
 for (const k of Object.keys(rootFns)) defineRootFn(ctx, k, rootFns[k]);
 ctx.routes = {};
 for (const r of routeDefs) (ctx.routes[r.path] ??= {})[r.method] = r.handler;

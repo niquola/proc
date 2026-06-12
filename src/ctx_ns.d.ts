@@ -7,6 +7,11 @@ declare global {
     type Context = import("./$type_Context").Context;
 
     interface FnsRegistry {
+        config: {
+            coerce: Injected<typeof import("./config/coerce").default>;
+            resolve: Injected<typeof import("./config/resolve").default>;
+            validate: Injected<typeof import("./config/validate").default>;
+        };
         db: {
             close: Injected<typeof import("./db/close").default>;
             conn: Injected<typeof import("./db/conn").default>;
@@ -51,7 +56,6 @@ declare global {
             toResponse: Injected<typeof import("./http/toResponse").default>;
         };
         lifecycle: {
-            config: Injected<typeof import("./lifecycle/config").default>;
             order: Injected<typeof import("./lifecycle/order").default>;
             start: Injected<typeof import("./lifecycle/start").default>;
             stop: Injected<typeof import("./lifecycle/stop").default>;

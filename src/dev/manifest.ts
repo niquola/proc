@@ -24,6 +24,7 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
     const routeDefs: string[] = [];
     const middlewareDefs: string[] = [];
     const lifecycleDefs: string[] = [];
+    const configSchemas: string[] = [];
     let n = 0;
 
     for (const e of entries) {
@@ -44,6 +45,10 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
             const local = "l" + (n++);
             imports.push(`import ${local} from "${rel(e.abs)}";`);
             lifecycleDefs.push(`  { module: ${JSON.stringify(e.moduleDir)}, hook: ${JSON.stringify(e.hook)}, handler: ${local} },`);
+        } else if (e.kind === "config") {
+            const local = "c" + (n++);
+            imports.push(`import ${local} from "${rel(e.abs)}";`);
+            configSchemas.push(`  ${JSON.stringify(e.moduleDir)}: ${local},`);
         }
         // $type_/$state_ → types only, irrelevant at runtime; $script_ → Later (pre-bundle assets)
     }
@@ -83,6 +88,9 @@ export const lifecycleDefs: any[] = [
 ${lifecycleDefs.join("\n")}
 ];
 export const startOrder: string[] = ${JSON.stringify(startOrder)};
+export const configSchemas: any = {
+${configSchemas.join("\n")}
+};
 `;
     await Bun.write(out, src);
     return { out, fns: Object.keys(fnTree).length, rootFns: Object.keys(rootFns).length, routes: routeDefs.length };

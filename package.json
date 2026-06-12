@@ -4,7 +4,10 @@
   "type": "module",
   "private": true,
   "proc": {
-    "start": ["db", "http"],
+    "prod": {
+      "db": { "url": "data/dev.sqlite" },
+      "http": { "port": 47393 }
+    },
     "plugins": [
       { "from": "file:./examples/hello" }
     ]

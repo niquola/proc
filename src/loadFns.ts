@@ -10,6 +10,13 @@ export default async function (ctx: Context, _session: Session | null, _opts: {}
     const entries = await scan(ctx, null, {});
 
     for (const entry of entries) {
+        // $config.ts → collect the module's schema into ctx.state (so modules
+        // read config via ctx.fns.config.resolve without importing $config).
+        if (entry.kind === 'config') {
+            const schema = (await import(entry.abs + `?t=${Date.now()}`)).default;
+            ((ctx.state as any).configSchemas ??= {})[entry.moduleDir] = schema;
+            continue;
+        }
         if (entry.kind !== 'fn') continue;
         const mod = await import(entry.abs + `?t=${Date.now()}`);
         const fn = mod.default;
