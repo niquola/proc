@@ -7,6 +7,11 @@ declare global {
     type Context = import("./$type_Context").Context;
 
     interface FnsRegistry {
+        cli: {
+            list: Injected<typeof import("./cli/list").default>;
+            parse: Injected<typeof import("./cli/parse").default>;
+            run: Injected<typeof import("./cli/run").default>;
+        };
         config: {
             coerce: Injected<typeof import("./config/coerce").default>;
             resolve: Injected<typeof import("./config/resolve").default>;
@@ -16,8 +21,11 @@ declare global {
             close: Injected<typeof import("./db/close").default>;
             conn: Injected<typeof import("./db/conn").default>;
             exec: Injected<typeof import("./db/exec").default>;
+            insert: Injected<typeof import("./db/insert").default>;
+            q: Injected<typeof import("./db/q").default>;
             query: Injected<typeof import("./db/query").default>;
             run: Injected<typeof import("./db/run").default>;
+            sql: Injected<typeof import("./db/sql").default>;
             url: Injected<typeof import("./db/url").default>;
         };
         dev: {
@@ -48,6 +56,12 @@ declare global {
         hello: {
             world: Injected<typeof import("../examples/hello/src/world").default>;
         };
+        hooks: {
+            first: Injected<typeof import("./hooks/first").default>;
+            list: Injected<typeof import("./hooks/list").default>;
+            register: Injected<typeof import("./hooks/register").default>;
+            run: Injected<typeof import("./hooks/run").default>;
+        };
         http: {
             dispatch: Injected<typeof import("./http/dispatch").default>;
             loadRoutes: Injected<typeof import("./http/loadRoutes").default>;
@@ -59,6 +73,11 @@ declare global {
             order: Injected<typeof import("./lifecycle/order").default>;
             start: Injected<typeof import("./lifecycle/start").default>;
             stop: Injected<typeof import("./lifecycle/stop").default>;
+        };
+        migrate: {
+            down: Injected<typeof import("./migrate/down").default>;
+            status: Injected<typeof import("./migrate/status").default>;
+            up: Injected<typeof import("./migrate/up").default>;
         };
         plugins: {
             add: Injected<typeof import("./plugins/add").default>;
@@ -81,6 +100,12 @@ declare global {
     genTypes: Injected<typeof import("./genTypes").default>;
     layout: Injected<typeof import("./$layout").default>;
     loadFns: Injected<typeof import("./loadFns").default>;
+    }
+
+    namespace types {
+        namespace db {
+            type Query = import("./db/$type_Query").Query;
+        }
     }
 
     interface CtxState {

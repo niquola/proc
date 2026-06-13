@@ -6,6 +6,7 @@
   "proc": {
     "prod": {
       "db": { "url": "data/dev.sqlite" },
+      "migrate": {},
       "http": { "port": 47393 }
     },
     "plugins": [
@@ -15,6 +16,7 @@
   "scripts": {
     "start": "bun src/$main.ts",
     "repl": "bun script/repl.ts",
+    "cli": "bun script/cli.ts",
     "test": "bun test"
   },
   "devDependencies": {

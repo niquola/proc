@@ -71,6 +71,18 @@ export async function boot(opts?: { root?: string }): Promise<Context> {
 
 export default boot;
 
+// Boot just the registry (no genTypes / routes / server / lifecycle) — for CLI
+// commands and one-off scripts that only need ctx.fns.
+export async function bootRegistry(opts?: { root?: string }): Promise<Context> {
+    const ctx = makeCtx();
+    ctx.state.root = opts?.root ?? resolve(import.meta.dir, "..");
+    const { default: loadFns } = await import("./loadFns");
+    const log = console.log;
+    console.log = () => {}; // quiet the [fns] load chatter (CLI output stays clean)
+    try { await loadFns(ctx, null, {}); } finally { console.log = log; }
+    return ctx;
+}
+
 if (import.meta.main) {
     const ctx = await boot();
     (globalThis as any).ctx = ctx;

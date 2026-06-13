@@ -17,6 +17,27 @@ export default async function (ctx: Context, _session: Session | null, _opts: {}
             ((ctx.state as any).configSchemas ??= {})[entry.moduleDir] = schema;
             continue;
         }
+        // $hook_<name>.ts → register under the hook name (id = module).
+        if (entry.kind === 'hook') {
+            const fn = (await import(entry.abs + `?t=${Date.now()}`)).default;
+            if (typeof fn === 'function') {
+                const hooks = ((ctx.state as any).hooks ??= {});
+                (hooks[entry.hookName] ??= new Map()).set(entry.moduleDir === '.' ? entry.hookName : entry.moduleDir, fn);
+            }
+            continue;
+        }
+        // $migration_<id>.ts → collect { id, up, down } for ctx.fns.migrate.
+        if (entry.kind === 'migration') {
+            const m = (await import(entry.abs + `?t=${Date.now()}`)).default;
+            if (m?.up) ((ctx.state as any).migrations ??= []).push({ id: entry.migrationId, up: m.up, down: m.down });
+            continue;
+        }
+        // $cli_<command>.ts → collect the command handler.
+        if (entry.kind === 'cli') {
+            const fn = (await import(entry.abs + `?t=${Date.now()}`)).default;
+            if (typeof fn === 'function') ((ctx.state as any).cli ??= {})[entry.command] = fn;
+            continue;
+        }
         if (entry.kind !== 'fn') continue;
         const mod = await import(entry.abs + `?t=${Date.now()}`);
         const fn = mod.default;

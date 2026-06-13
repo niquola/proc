@@ -35,6 +35,9 @@ declare global {
         middleware?: Array<{ prefix: string; segs: string[]; handler: Function }>;
         lifecycle?: { started: string[] };
         configSchemas?: Record<string, ConfigSchema>;
+        hooks?: Record<string, Map<string, Function>>;
+        migrations?: Array<{ id: string; up: Function; down?: Function }>;
+        cli?: Record<string, Function>;
         dev?: { errors: Map<string, string> };
         watcher?: any;
         db?: import("bun:sqlite").Database;

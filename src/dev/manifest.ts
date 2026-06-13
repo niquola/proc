@@ -25,6 +25,9 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
     const middlewareDefs: string[] = [];
     const lifecycleDefs: string[] = [];
     const configSchemas: string[] = [];
+    const hookDefs: string[] = [];
+    const migrationDefs: string[] = [];
+    const cliDefs: string[] = [];
     let n = 0;
 
     for (const e of entries) {
@@ -49,6 +52,18 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
             const local = "c" + (n++);
             imports.push(`import ${local} from "${rel(e.abs)}";`);
             configSchemas.push(`  ${JSON.stringify(e.moduleDir)}: ${local},`);
+        } else if (e.kind === "hook") {
+            const local = "h" + (n++);
+            imports.push(`import ${local} from "${rel(e.abs)}";`);
+            hookDefs.push(`  { name: ${JSON.stringify(e.hookName)}, id: ${JSON.stringify(e.moduleDir)}, handler: ${local} },`);
+        } else if (e.kind === "migration") {
+            const local = "mg" + (n++);
+            imports.push(`import ${local} from "${rel(e.abs)}";`);
+            migrationDefs.push(`  { id: ${JSON.stringify(e.migrationId)}, mod: ${local} },`);
+        } else if (e.kind === "cli") {
+            const local = "cmd" + (n++);
+            imports.push(`import ${local} from "${rel(e.abs)}";`);
+            cliDefs.push(`  ${JSON.stringify(e.command)}: ${local},`);
         }
         // $type_/$state_ → types only, irrelevant at runtime; $script_ → Later (pre-bundle assets)
     }
@@ -90,6 +105,15 @@ ${lifecycleDefs.join("\n")}
 export const startOrder: string[] = ${JSON.stringify(startOrder)};
 export const configSchemas: any = {
 ${configSchemas.join("\n")}
+};
+export const hookDefs: any[] = [
+${hookDefs.join("\n")}
+];
+export const migrationDefs: any[] = [
+${migrationDefs.join("\n")}
+];
+export const cliDefs: any = {
+${cliDefs.join("\n")}
 };
 `;
     await Bun.write(out, src);

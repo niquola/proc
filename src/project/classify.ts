@@ -11,6 +11,9 @@ export type ProjectEntry =
     | { kind: "state"; rel: string; moduleDir: string; fileName: string; stateKey: string }
     | { kind: "lifecycle"; rel: string; moduleDir: string; fileName: string; hook: "start" | "stop" }
     | { kind: "config"; rel: string; moduleDir: string; fileName: string }
+    | { kind: "hook"; rel: string; moduleDir: string; fileName: string; hookName: string }
+    | { kind: "migration"; rel: string; moduleDir: string; fileName: string; migrationId: string }
+    | { kind: "cli"; rel: string; moduleDir: string; fileName: string; command: string }
     | { kind: "skip"; rel: string; moduleDir: string; fileName: string; reason: string };
 
 export default function (_ctx: Context, _session: Session | null, opts: { rel: string }): ProjectEntry {
@@ -80,6 +83,30 @@ export default function (_ctx: Context, _session: Session | null, opts: { rel: s
     // Collected into ctx.state.configSchemas; modules never import it — they
     // read config via ctx.fns.config.resolve({ module }).
     if (stem === '$config') return { kind: 'config', rel, moduleDir, fileName };
+
+    // $hook_<name>.ts → a named extension point handler, auto-registered under
+    // <name> (id = module). Run via ctx.fns.hooks.run/first({ name }).
+    if (stem.startsWith('$hook_')) {
+        const hookName = stem.slice('$hook_'.length);
+        if (!hookName) return { kind: 'skip', rel, moduleDir, fileName, reason: 'bad-hook-name' };
+        return { kind: 'hook', rel, moduleDir, fileName, hookName };
+    }
+
+    // $migration_<id>.ts → a db migration (default-exports { up, down? }); run in
+    // id order by ctx.fns.migrate.up, tracked in the _migrations table.
+    if (stem.startsWith('$migration_')) {
+        const migrationId = stem.slice('$migration_'.length);
+        if (!migrationId) return { kind: 'skip', rel, moduleDir, fileName, reason: 'bad-migration-name' };
+        return { kind: 'migration', rel, moduleDir, fileName, migrationId };
+    }
+
+    // $cli_<command>.ts → a CLI command (default fn (ctx, session, opts)); `_`
+    // becomes `:` (e.g. $cli_db_seed.ts → `db:seed`). Run by ctx.fns.cli.run.
+    if (stem.startsWith('$cli_')) {
+        const command = stem.slice('$cli_'.length).replaceAll('_', ':');
+        if (!command) return { kind: 'skip', rel, moduleDir, fileName, reason: 'bad-cli-name' };
+        return { kind: 'cli', rel, moduleDir, fileName, command };
+    }
 
     const runtimeName = stem.startsWith('$') ? stem.slice(1) : stem;
     return { kind: 'fn', rel, moduleDir, fileName, runtimeName };

@@ -92,6 +92,9 @@ The whole system is one object — `ctx` — and a pipeline that fills it from t
 | `module/$state_<key>.ts` | typed state slot | types `ctx.state.<key>` (file exports `type <key>`) |
 | `module/$start.ts` / `$stop.ts` | lifecycle hooks | run at boot / shutdown (`ctx.fns.lifecycle.*`) |
 | `module/$config.ts` | config schema | validated config via `ctx.fns.config.resolve({module})` |
+| `module/$hook_<name>.ts` | hook handler | auto-registered; run via `ctx.fns.hooks.run/first({name})` |
+| `module/$migration_<id>.ts` | db migration | `{ up, down? }`, run in id order by `ctx.fns.migrate.up` |
+| `module/$cli_<command>.ts` | CLI command | `bun script/cli.ts <command>` (`_`→`:`) |
 | `module/$script_name.js\|.css` | browser asset | `GET /module/name.js` (bundled by Bun.build on request) |
 | `*.test.ts`, `*.entry.ts`, `*.d.ts`, `$main.ts` | skipped | — |
 
@@ -184,6 +187,16 @@ Limitation: code executed in the REPL buffer is never typechecked (only transpil
 "proc": { "prod": { "db": { "url": "data/dev.sqlite" }, "http": { "port": 47393 } }, "plugins": [ … ] }
 ```
 `db/$config.ts` → `{ url: { type: "string", required: true, default: "data/dev.sqlite", env: "DATABASE_URL" } } as const satisfies ConfigSchema`. In prod `DATABASE_URL`/`PORT` env override; the schema is baked into the bundle.
+
+## Hooks · migrations · query DSL · CLI (adopted from context-clj)
+
+**Hooks (src/hooks/)** — named extension points so modules/plugins extend each other without coupling. `$hook_<name>.ts` auto-registers a handler under `<name>` (id = module); register programmatically with `ctx.fns.hooks.register({name,id,fn})`. Run them: `ctx.fns.hooks.run({name, opts})` (fan-out → array of results, in order) or `ctx.fns.hooks.first({name, opts})` (first non-null wins — auth/resolve style). `hooks.list()` introspects. This is the general primitive; `$middleware` is the HTTP-path-specific case. Baked into the prod bundle.
+
+**Migrations (src/migrate/)** — `$migration_<id>.ts` default-exports `{ up(ctx), down?(ctx) }`. `ctx.fns.migrate.up()` runs pending ones in **id order**, recording each in `_migrations` (idempotent); `migrate.down({steps?})` rolls back; `migrate.status()` lists applied/pending. Run at boot via the `migrate` lifecycle module — put `"migrate"` in `package.json proc.prod` after `"db"`. Collected from files into `ctx.state.migrations` (baked into the bundle, so prod migrates on boot).
+
+**Query DSL (src/db/)** — `ctx.fns.db.sql(query)` compiles a query object → `{ sql, params }` (pure, testable, parameterized): `{ select?, from, where?, orderBy?, limit?, offset? }` where `where` is `{ col: val }` (=), `{ col: [..] }` (IN), `{ col: { ">": n } }` (op), `null` (IS NULL). `ctx.fns.db.q(query)` runs a SELECT; `ctx.fns.db.insert({into, values})` inserts. Raw `db.query/run/exec` remain for anything the DSL doesn't cover. Type: `types.db.Query`.
+
+**CLI (src/cli/, script/cli.ts)** — `$cli_<command>.ts` default-exports `(ctx, session, opts)`; `_`→`:` (so `$cli_db_seed.ts` → `db:seed`). `bun script/cli.ts <command> [--flag value] [positionals]` boots the **registry only** (no server — `bootRegistry`), dispatches via `ctx.fns.cli.run`, prints the result. No command / `--help` lists commands (`ctx.fns.cli.list`). Core commands: `fns` (list the registry), `migrate`. `cli.parse` is the flag parser (schemaless: `--k v` takes a value, trailing `--flag` is boolean).
 
 ## Middleware & typed state
 
