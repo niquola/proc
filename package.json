@@ -5,6 +5,7 @@
   "private": true,
   "proc": {
     "prod": {
+      "log": {},
       "db": { "url": "data/dev.sqlite" },
       "migrate": {},
       "http": { "port": 47393 }

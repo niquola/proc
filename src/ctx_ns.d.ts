@@ -74,6 +74,14 @@ declare global {
             start: Injected<typeof import("./lifecycle/start").default>;
             stop: Injected<typeof import("./lifecycle/stop").default>;
         };
+        log: {
+            debug: Injected<typeof import("./log/debug").default>;
+            emit: Injected<typeof import("./log/emit").default>;
+            error: Injected<typeof import("./log/error").default>;
+            info: Injected<typeof import("./log/info").default>;
+            level: Injected<typeof import("./log/level").default>;
+            warn: Injected<typeof import("./log/warn").default>;
+        };
         migrate: {
             down: Injected<typeof import("./migrate/down").default>;
             status: Injected<typeof import("./migrate/status").default>;
@@ -105,6 +113,9 @@ declare global {
     namespace types {
         namespace db {
             type Query = import("./db/$type_Query").Query;
+        }
+        namespace log {
+            type LogRecord = import("./log/$type_LogRecord").LogRecord;
         }
     }
 

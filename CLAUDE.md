@@ -334,6 +334,46 @@ So **`.env.test` "just works" for `bun test`** — verified. Convention: commit 
 
 Caveat: `.env` selection happens **at process start**, before our code runs, so a forked test env inside a dev process (`env.fork`) does NOT retroactively load `.env.test` — it inherits the dev process's vars. For per-ctx values that differ from the process env, use `ctx.fns.env.pick({...})` (config-by-function) or `env.fork({ mode, env: { KEY: "..." } })` to override specific vars on the forked ctx.
 
+## Structured logging (src/log/) — OTel-compatible
+
+Centralized, leveled, structured logging. Two output modes: human-readable for dev, OTel-compatible ndjson for prod. Ported from context-clj's logging system; levels and per-ctx isolation work identically.
+
+**Levels** (numeric, higher = more verbose): `off(-1)`, `error(0)`, `warn(1)`, `info(2)`, `debug(3)`. Stored in `ctx.state.log.level`. The level gate is a single numeric comparison — near-zero cost when filtered out.
+
+**Config** (`$config.ts`): `LOG_LEVEL` (default `"info"`), `LOG_FORMAT` (`"pretty"` or `"json"`, default `"pretty"`), `SERVICE_NAME` (default `"procs"`, maps to OTel `Resource.service.name`). Listed first in `package.json proc.prod` so all other `$start` hooks can log.
+
+**Usage:**
+
+```ts
+ctx.fns.log.info({ event: "todo.created", msg: "Created todo", id: 42, title: "Buy milk" })
+ctx.fns.log.warn({ event: "db.slow", msg: "Query took 5s", table: "users", ms: 5000 })
+ctx.fns.log.error({ event: "auth.failed", msg: "Invalid token" })
+ctx.fns.log.debug({ event: "cache.hit", key: "user:1" })
+```
+
+`event` (required) — the event class (OTel EventName). `msg` (optional) — human message (OTel Body; defaults to `event`). All other keys → `Attributes`. Session context (`http.method`, `http.url`) is attached automatically from `ctx.session`.
+
+**JSON output** (prod, `LOG_FORMAT=json`) — ndjson to stdout, one record per line:
+
+```json
+{"Timestamp":"…","SeverityNumber":9,"SeverityText":"INFO","Body":"Created todo","Attributes":{"event":"todo.created","id":42},"Resource":{"service.name":"my-app"}}
+```
+
+OTel SeverityNumber: DEBUG=5, INFO=9, WARN=13, ERROR=17. Collectors (Alloy, FluentBit, Vector) parse stdout.
+
+**Pretty output** (dev) — `[event] message  key=value` with ANSI colors (cyan=debug, green=info, yellow=warn, red=error).
+
+**Per-ctx level:**
+
+```ts
+ctx.fns.log.level({})                    // → { level: 2, name: "info" }
+ctx.fns.log.level({ set: "debug" })      // enable debug on this ctx
+const fork = ctx.fns.env.fork({ mode: "test" });
+fork.fns.log.level({ set: "error" });    // fork has its own level; parent untouched
+```
+
+**Functions:** `emit.ts` (core formatter/writer), `info.ts`/`warn.ts`/`error.ts`/`debug.ts` (level shorthands), `level.ts` (get/set), `$start.ts` (lifecycle init from config), `$config.ts`, `$type_LogRecord.ts` (OTel type).
+
 ## Persistence — example db module (src/db/)
 
 Not core, but the canonical example of env-aware, ctx-scoped state. A thin `bun:sqlite` layer whose **connection lives in `ctx.state.db`** (per-ctx, not a module global) — so `env.fork` gives each environment an isolated database:
