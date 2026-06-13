@@ -4,6 +4,7 @@
 //   await ctx.fns.dev.def({ name: "math.fib", code: "export default ..." })
 //   await ctx.fns.dev.def({ rel: "math/$route__GET.ts", code: "..." })
 import { rm } from "node:fs/promises";
+import { collectStateFile } from "../loadFns";
 
 export default async function (ctx: Context, _session: Session | null, opts: { name?: string; rel?: string; code: string }) {
     const roots = await ctx.fns.project.roots({});
@@ -38,6 +39,8 @@ export default async function (ctx: Context, _session: Session | null, opts: { n
             await ctx.fns.repl.load({ name: entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName });
         } else if (entry.kind === 'route' || entry.kind === 'script') {
             await ctx.fns.http.loadRoutes({});
+        } else if (entry.kind === 'config' || entry.kind === 'hook' || entry.kind === 'migration' || entry.kind === 'cli') {
+            await collectStateFile(ctx, entry, abs);
         }
         await ctx.genTypes({});
     } catch (e: any) {

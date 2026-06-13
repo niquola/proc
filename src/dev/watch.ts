@@ -7,7 +7,7 @@
 // Errors (syntax etc.) are logged + recorded on the error board, old version
 // keeps running.
 import { watch } from "node:fs";
-import { defineRootFn } from "../loadFns";
+import { defineRootFn, collectStateFile } from "../loadFns";
 
 export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
     const st = ctx.state as any;
@@ -65,6 +65,9 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
                     needReload = true;
                 } else if (entry.kind === 'type') {
                     needTypes = true;
+                } else if (entry.kind === 'config' || entry.kind === 'hook' || entry.kind === 'migration' || entry.kind === 'cli') {
+                    await collectStateFile(ctx, entry, roots[0]!.dir + "/" + rel);
+                    needTypes = true; // config slots show up in CtxState
                 }
                 errors.delete(rel);
             } catch (e: any) {

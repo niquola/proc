@@ -125,12 +125,15 @@ src/
 ├── generate/           # fn / route / module scaffolding
 ├── lifecycle/          # $start / $stop module hooks, ordered by package.json proc.prod
 ├── config/             # coerce · validate · resolve (typed config, env-through-config)
-├── db/                 # persistence: bun:sqlite, connection in ctx.state.db
+├── hooks/              # named extension points ($hook_<name>): register · run · first
+├── migrate/            # db migrations ($migration_<id>): up · down · status
+├── cli/                # CLI runner ($cli_<command>): parse · run · list (script/cli.ts)
+├── db/                 # persistence: bun:sqlite + query DSL (sql · q · insert)
 └── $test.ts            # test harness: testCtx() gives a loaded ctx, no server
 
-examples/               # apps as plugins (kept out of core)
-├── hello/              # minimal plugin (fn + route + $middleware + $state)
-└── todo/               # htmx + Tailwind todo app on db, with tests
+examples/               # apps, kept out of core
+├── hello/              # plugin: fn + route + $middleware + $state + $hook + $migration
+└── todo/               # standalone app (boot from its own folder): htmx + Tailwind on db
 ```
 
 ~1900 lines of framework, zero runtime dependencies beyond Bun itself.
@@ -145,7 +148,7 @@ Handlers return whatever is convenient: a `Response` passes through, a `string` 
 - `ctx.fns.dev.lint({})` (gated in def/sync/build/boot) forbids the two ways nesting silently breaks: non-identifier names, and a name being both a function and a namespace (`x.ts` beside `x/`).
 - Tests are co-located `*.test.ts` (`bun test`): `X.test.ts` tests `X` — unit if `X.ts` is a function, functional if `X/` is a namespace. `testCtx()` gives a loaded `ctx` (test mode, no server); `ctx.fns.http.dispatch({url})` tests REST in-process.
 - Environments are per-ctx (`ctx.fns.env.mode/pick`): `ctx.fns.env.fork({ mode: "test" })` spins a test env — own state + db, shared code — coexisting with dev in one process.
-- Modules can have `$start.ts` / `$stop.ts` (lifecycle), `$config.ts` (typed, validated config — env enters *through* config). The system manifest is package.json `proc.prod: { module: config }`. See CLAUDE.md.
+- Modules can have `$start.ts` / `$stop.ts` (lifecycle), `$config.ts` (typed, validated config — env enters *through* config), `$hook_<name>.ts` (extension points), `$migration_<id>.ts` (db migrations), `$cli_<command>.ts` (CLI). The system manifest is package.json `proc.prod: { module: config }`. All hot-reload via `dev.def/sync`. See CLAUDE.md.
 - Apps are plugins under `examples/` (declared in package.json `proc.plugins`). A plugin's namespace prefixes everything: `examples/todo` (namespace `todo`) serves `/todo/*` and `ctx.fns.todo.*`, calling core `ctx.fns.db` — no imports.
 - Never import project functions from each other — call through `ctx.fns` (that's what makes everything hot-swappable).
 - `ctx.state` holds runtime singletons and survives between REPL calls.

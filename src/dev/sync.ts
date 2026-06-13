@@ -1,5 +1,8 @@
 // Sync one file from disk into the live process, whatever it is.
 // Companion to an external editor/Write: write file → dev.sync({rel}) → test.
+import { collectStateFile } from "../loadFns";
+import { resolve } from "node:path";
+
 export default async function (ctx: Context, _session: Session | null, opts: { rel: string }) {
     const entry = ctx.fns.project.classify({ rel: opts.rel });
 
@@ -23,6 +26,12 @@ export default async function (ctx: Context, _session: Session | null, opts: { r
     if (entry.kind === 'type') {
         await ctx.genTypes({});
         return { synced: opts.rel, as: 'type' };
+    }
+    if (entry.kind === 'config' || entry.kind === 'hook' || entry.kind === 'migration' || entry.kind === 'cli') {
+        const src = resolve(ctx.fns.project.projectRoot({}), "src");
+        await collectStateFile(ctx, entry, resolve(src, opts.rel));
+        if (entry.kind === 'config') await ctx.genTypes({}); // config types live in CtxState
+        return { synced: opts.rel, as: entry.kind };
     }
     throw new Error(`nothing to sync: ${opts.rel} (${entry.kind}: ${(entry as any).reason})`);
 }
