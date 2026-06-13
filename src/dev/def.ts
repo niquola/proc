@@ -4,10 +4,10 @@
 //   await ctx.fns.dev.def({ name: "math.fib", code: "export default ..." })
 //   await ctx.fns.dev.def({ rel: "math/$route__GET.ts", code: "..." })
 import { rm } from "node:fs/promises";
-import { collectStateFile } from "../loadFns";
+import { resolve } from "node:path";
+import { collectStateFile, dottedName, STATE_KINDS } from "../loadFns";
 
 export default async function (ctx: Context, _session: Session | null, opts: { name?: string; rel?: string; code: string }) {
-    const roots = await ctx.fns.project.roots({});
     let rel = opts.rel;
     if (!rel && opts.name) {
         const segs = opts.name.split('.');
@@ -23,7 +23,9 @@ export default async function (ctx: Context, _session: Session | null, opts: { n
     // Validate before touching disk: parse error → throw, no file written.
     new Bun.Transpiler({ loader: 'ts' }).transformSync(opts.code);
 
-    const abs = roots[0]!.dir + '/' + rel;
+    // Write into the APP's src (not proc's core) — same dir genTypes/sync target,
+    // so an app booting proc as a dependency writes its own tree, not proc's.
+    const abs = resolve(ctx.fns.project.projectRoot({}), 'src', rel);
     const existed = await Bun.file(abs).exists();
     await Bun.write(abs, opts.code);
 
@@ -36,20 +38,22 @@ export default async function (ctx: Context, _session: Session | null, opts: { n
 
     try {
         if (entry.kind === 'fn') {
-            await ctx.fns.repl.load({ name: entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName });
+            await ctx.fns.repl.load({ name: dottedName(entry) });
         } else if (entry.kind === 'route' || entry.kind === 'script') {
             await ctx.fns.http.loadRoutes({});
-        } else if (entry.kind === 'config' || entry.kind === 'hook' || entry.kind === 'migration' || entry.kind === 'cli') {
+        } else if (STATE_KINDS.has(entry.kind)) {
             await collectStateFile(ctx, entry, abs);
         }
         await ctx.genTypes({});
     } catch (e: any) {
+        if (!existed) await rm(abs).catch(() => {}); // roll back the file we just wrote (mirrors the lint path)
         throw new Error(`src/${rel} written but failed to load: ${e?.message ?? e}`);
     }
 
-    const as = entry.kind === 'fn' ? `ctx.fns.${entry.moduleDir.replaceAll('/', '.')}.${entry.runtimeName}`
+    const as = entry.kind === 'fn' ? `ctx.fns.${dottedName(entry)}`
         : entry.kind === 'route' ? `${entry.method} ${entry.routePath}`
         : entry.kind === 'script' ? `GET ${entry.routePath}` : rel;
     console.log(`[def] ${existed ? 'redefined' : 'defined'} ${as}  ←  src/${rel}`);
-    return { [existed ? 'redefined' : 'defined']: as, file: `src/${rel}`, kind: entry.kind };
+    // Fixed shape (callers can destructure it, unlike a dynamic key).
+    return { as, file: `src/${rel}`, kind: entry.kind, redefined: existed };
 }

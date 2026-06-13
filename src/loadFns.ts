@@ -12,7 +12,7 @@ export default async function (ctx: Context, _session: Session | null, _opts: {}
     for (const entry of entries) {
         // $config/$hook/$migration/$cli → collected into ctx.state (shared with
         // dev.sync/def so they hot-reload, not only at boot).
-        if (entry.kind === 'config' || entry.kind === 'hook' || entry.kind === 'migration' || entry.kind === 'cli') {
+        if (STATE_KINDS.has(entry.kind)) {
             await collectStateFile(ctx, entry, entry.abs);
             continue;
         }
@@ -25,7 +25,7 @@ export default async function (ctx: Context, _session: Session | null, _opts: {}
             console.log(`[fns] ctx.${entry.runtimeName}  ←  ${source(entry)}`);
         } else {
             setPath(ctx.state.registry, [...entry.moduleDir.split('/'), entry.runtimeName], fn);
-            console.log(`[fns] ctx.fns.${entry.moduleDir.replaceAll('/', '.')}.${entry.runtimeName}  ←  ${source(entry)}`);
+            console.log(`[fns] ctx.fns.${dottedName(entry)}  ←  ${source(entry)}`);
         }
     }
 }
@@ -53,6 +53,19 @@ export async function collectStateFile(ctx: Context, entry: any, abs: string): P
     } else if (entry.kind === 'cli') {
         if (typeof d === 'function') ((ctx.state as any).cli ??= {})[entry.command] = d;
     }
+}
+
+// Convention-file kinds collected into ctx.state (not the fn registry). loadFns
+// (boot) and dev.def/sync/watch (hot-reload) all branch on this same set, so it
+// lives in ONE place — collectStateFile knows how to handle each.
+export const STATE_KINDS = new Set(['config', 'hook', 'migration', 'cli']);
+
+// The dotted registry name for a fn entry: "module.sub.fn", or just "fn" for a
+// root $name.ts (moduleDir === '.'). ONE definition — def/sync/watch all build
+// this name, and the "." special case is exactly what dev.def used to get wrong
+// (it produced "..fn" for root fns, so repl.load couldn't find them).
+export function dottedName(e: { moduleDir: string; runtimeName: string }): string {
+    return e.moduleDir === '.' ? e.runtimeName : e.moduleDir.replaceAll('/', '.') + '.' + e.runtimeName;
 }
 
 // Set value at a nested path in a tree, creating intermediate objects. Shared by

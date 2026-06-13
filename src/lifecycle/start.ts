@@ -1,4 +1,4 @@
-// Run each module's $start.ts in order (package.json proc.start). A $start gets
+// Run each module's $start.ts in order (package.json proc.prod). A $start gets
 // (ctx, config) and may RETURN a state object — merged into ctx.state.<module>
 // (and handed back to $stop). Idempotent (a started module is skipped). On
 // failure, already-started modules are stopped (rollback) and the error rethrows.

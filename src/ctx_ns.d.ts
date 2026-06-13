@@ -3,8 +3,8 @@
 type Injected<F> = F extends (ctx: any, session: any, ...args: infer A) => infer R ? (...args: A) => R : never;
 
 declare global {
-    type Session = import("./$type_Session").Session;
     type Context = import("./$type_Context").Context;
+    type Session = import("./$type_Session").Session;
 
     interface FnsRegistry {
         cli: {

@@ -28,6 +28,14 @@ test("middleware: prefix match, session mutation, short-circuit", async () => {
     ctx.state.middleware = [];
 });
 
+test("dispatch: a throwing handler → 500 (same contract as the real server)", async () => {
+    ctx.routes["/boom"] = { GET: () => { throw new Error("kaboom"); } };
+    const res = await ctx.fns.http.dispatch({ url: "/boom" });
+    expect(res.status).toBe(500);
+    expect(await res.text()).toContain("kaboom"); // dev/test exposes the message
+    delete ctx.routes["/boom"];
+});
+
 test("dispatch: :param + JSON body + JSON response", async () => {
     ctx.routes["/echo/:id"] = {
         POST: async (_c: Context, s: Session, o: { req: Request }) => ({ id: s.params!.id, body: await o.req.json() }),

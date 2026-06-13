@@ -59,100 +59,42 @@ ${withLastExpressionReturn(code)}
     return { output: buffer.join('\n'), return: result };
 }
 
+// Leading keywords that make a statement NOT an expression (so we never wrap it
+// in `return (...)`). If the last statement is one of these, the REPL returns
+// undefined — same as a script.
+const STATEMENT_KEYWORD = /^(async\s+function|const|let|var|if|for|while|do|switch|try|catch|finally|return|throw|break|continue|debugger|function|class|import|export|interface|type|enum|namespace|declare)\b/;
+
+// Wrap the last EXPRESSION statement in `return (...)` so the REPL yields its
+// value (Jupyter-style). Rather than hand-tokenize JS (regex literals, template
+// strings, comments and multiline expressions all make that fragile), we let the
+// transpiler be the oracle: try each statement boundary as the split point,
+// closest-to-the-end first, and keep the FIRST where `<prefix> return (<tail>)`
+// actually parses. Anything that parses is correct by construction; if nothing
+// does (e.g. the last statement is a declaration), run the code unchanged.
 function withLastExpressionReturn(code: string): string {
-    const range = lastStatementRange(code);
-    if (!range) return code;
-
-    const statement = code.slice(range.start, range.end).trim();
-    if (!isExpressionStatement(statement)) return code;
-
-    return `${code.slice(0, range.start)}return (${statement});${code.slice(range.end)}`;
-}
-
-function lastStatementRange(code: string): { start: number; end: number } | null {
-    let end = code.length;
+    let end = code.length;                                  // last meaningful char (skip trailing space/`;`)
     while (end > 0 && /[\s;]/.test(code[end - 1]!)) end--;
-    if (end === 0) return null;
+    if (end === 0) return code;
 
-    let start = 0;
-    let parens = 0;
-    let brackets = 0;
-    let braces = 0;
-    let state: 'normal' | 'single' | 'double' | 'template' | 'line-comment' | 'block-comment' = 'normal';
+    // Candidate split points: file start + just after every ';' or newline.
+    // Deliberately naive about nesting — a split inside a string/object/comment
+    // simply fails to parse and we fall through to an earlier one. Largest first
+    // so we wrap the LAST statement, not an earlier prefix of the code.
+    const starts = [0];
+    for (let i = 0; i < end; i++) if (code[i] === ';' || code[i] === '\n') starts.push(i + 1);
+    starts.sort((a, b) => b - a);
 
-    for (let i = 0; i < end; i++) {
-        const ch = code[i]!;
-        const next = code[i + 1];
-
-        if (state === 'line-comment') {
-            if (ch === '\n') {
-                state = 'normal';
-                if (parens === 0 && brackets === 0 && braces === 0) start = i + 1;
-            }
-            continue;
-        }
-        if (state === 'block-comment') {
-            if (ch === '*' && next === '/') {
-                state = 'normal';
-                i++;
-            }
-            continue;
-        }
-        if (state === 'single') {
-            if (ch === '\\') i++;
-            else if (ch === "'") state = 'normal';
-            continue;
-        }
-        if (state === 'double') {
-            if (ch === '\\') i++;
-            else if (ch === '"') state = 'normal';
-            continue;
-        }
-        if (state === 'template') {
-            if (ch === '\\') i++;
-            else if (ch === '`') state = 'normal';
-            continue;
-        }
-
-        if (ch === '/' && next === '/') {
-            state = 'line-comment';
-            i++;
-            continue;
-        }
-        if (ch === '/' && next === '*') {
-            state = 'block-comment';
-            i++;
-            continue;
-        }
-        if (ch === "'") {
-            state = 'single';
-            continue;
-        }
-        if (ch === '"') {
-            state = 'double';
-            continue;
-        }
-        if (ch === '`') {
-            state = 'template';
-            continue;
-        }
-
-        if (ch === '(') parens++;
-        else if (ch === ')') parens = Math.max(0, parens - 1);
-        else if (ch === '[') brackets++;
-        else if (ch === ']') brackets = Math.max(0, brackets - 1);
-        else if (ch === '{') braces++;
-        else if (ch === '}') braces = Math.max(0, braces - 1);
-        else if ((ch === ';' || ch === '\n') && parens === 0 && brackets === 0 && braces === 0) start = i + 1;
+    for (const start of starts) {
+        let s = start;
+        while (s < end && /\s/.test(code[s]!)) s++;
+        const tail = code.slice(s, end).trim();
+        if (!tail || STATEMENT_KEYWORD.test(tail)) continue; // not an expression → don't wrap
+        // `)` on its own line so a trailing line-comment in `tail` can't eat it.
+        const candidate = `${code.slice(0, s)}return (\n${tail}\n);`;
+        try {
+            TS_TRANSPILER.transformSync(`async function __r() {\n${candidate}\n}`);
+            return candidate;
+        } catch { /* invalid split — try an earlier boundary */ }
     }
-
-    while (start < end && /\s/.test(code[start]!)) start++;
-    return start === end ? null : { start, end };
-}
-
-function isExpressionStatement(statement: string): boolean {
-    if (/^(async\s+function|const|let|var|if|for|while|do|switch|try|catch|finally|return|throw|break|continue|debugger|function|class|import|export|interface|type|enum|namespace|declare)\b/.test(statement)) {
-        return false;
-    }
-    return true;
+    return code; // nothing wrapped cleanly (e.g. last statement is a declaration)
 }

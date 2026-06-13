@@ -2,6 +2,9 @@
 // its down(ctx) and removing it from _migrations.
 export default async function (ctx: Context, _session: Session | null, opts?: { steps?: number }) {
     const steps = opts?.steps ?? 1;
+    // Match up/status: ensure the bookkeeping table exists so down() on a fresh
+    // DB is a no-op instead of throwing "no such table: _migrations".
+    ctx.fns.db.exec({ sql: "CREATE TABLE IF NOT EXISTS _migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)" });
     const byId = new Map((ctx.state.migrations ?? []).map((m) => [m.id, m]));
     const applied = ctx.fns.db.query({ sql: "SELECT id FROM _migrations ORDER BY id DESC" }).map((r: any) => r.id);
 

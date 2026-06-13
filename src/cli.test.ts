@@ -9,6 +9,11 @@ test("cli.parse: command + --flags + positionals", () => {
         .toEqual({ command: "db:seed", opts: { _: ["x"], n: "5", force: true } });
 });
 
+test("cli.parse: a negative number is a flag value, not a boolean", () => {
+    expect(ctx.fns.cli.parse({ argv: ["q", "--offset", "-5", "--limit", "10"] }))
+        .toEqual({ command: "q", opts: { _: [], offset: "-5", limit: "10" } });
+});
+
 test("cli.run: dispatches $cli_<command> (fns) and help", async () => {
     const out = await ctx.fns.cli.run({ argv: ["fns"] });
     expect(Array.isArray(out)).toBe(true);

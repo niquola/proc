@@ -32,10 +32,18 @@ export default async function (
     // Request ctx: inherits this env-ctx (so dispatch on a forked test ctx runs
     // against the test env), carries the session through the call chain.
     const rctx = makeRequestCtx(ctx, { kind: "dispatch", req, params: m.params, url: u });
-    for (const mw of ctx.fns.http.middleware({ pathname: u.pathname })) {
-        const short = await mw.handler(rctx, rctx.session, { req, params: m.params });
-        if (short instanceof Response) return short;
+    try {
+        for (const mw of ctx.fns.http.middleware({ pathname: u.pathname })) {
+            const short = await mw.handler(rctx, rctx.session, { req, params: m.params });
+            if (short instanceof Response) return short;
+        }
+        const raw = await m.handler(rctx, rctx.session, { req, params: m.params });
+        return ctx.fns.http.toResponse({ value: raw });
+    } catch (e: any) {
+        // Same 500 contract as the real server (http/$start.ts) — dispatch is
+        // "the same path minus the socket", so a throwing handler is a Response.
+        const dev = ctx.env.NODE_ENV !== "production";
+        const body = dev ? `${e?.message}\n\n${e?.stack ?? ""}` : "Internal Server Error";
+        return new Response(body, { status: 500, headers: { "content-type": "text/plain; charset=utf-8" } });
     }
-    const raw = await m.handler(rctx, rctx.session, { req, params: m.params });
-    return ctx.fns.http.toResponse({ value: raw });
 }

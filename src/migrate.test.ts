@@ -15,3 +15,8 @@ test("migrate: up (in id order, idempotent) + status + down", async () => {
     expect((await ctx.fns.migrate.down({})).rolledBack).toEqual(["002_b"]); // last only
     expect(ctx.fns.migrate.status({}).find((m: any) => m.id === "002_b")!.applied).toBe(false);
 });
+
+test("migrate: down on a fresh DB is a no-op (no 'no such table')", async () => {
+    const fresh = ctx.fns.env.fork({ mode: "test" }); // own :memory: db, never migrated
+    expect((await fresh.fns.migrate.down({})).rolledBack).toEqual([]);
+});

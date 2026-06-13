@@ -1,6 +1,6 @@
 // Sync one file from disk into the live process, whatever it is.
 // Companion to an external editor/Write: write file → dev.sync({rel}) → test.
-import { collectStateFile } from "../loadFns";
+import { collectStateFile, dottedName, STATE_KINDS } from "../loadFns";
 import { resolve } from "node:path";
 
 export default async function (ctx: Context, _session: Session | null, opts: { rel: string }) {
@@ -13,7 +13,7 @@ export default async function (ctx: Context, _session: Session | null, opts: { r
     }
 
     if (entry.kind === 'fn') {
-        const name = entry.moduleDir === '.' ? entry.runtimeName : entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName;
+        const name = dottedName(entry);
         await ctx.fns.repl.load({ name });
         await ctx.genTypes({});
         return { synced: opts.rel, as: 'ctx.fns.' + name };
@@ -27,7 +27,7 @@ export default async function (ctx: Context, _session: Session | null, opts: { r
         await ctx.genTypes({});
         return { synced: opts.rel, as: 'type' };
     }
-    if (entry.kind === 'config' || entry.kind === 'hook' || entry.kind === 'migration' || entry.kind === 'cli') {
+    if (STATE_KINDS.has(entry.kind)) {
         const src = resolve(ctx.fns.project.projectRoot({}), "src");
         await collectStateFile(ctx, entry, resolve(src, opts.rel));
         if (entry.kind === 'config') await ctx.genTypes({}); // config types live in CtxState

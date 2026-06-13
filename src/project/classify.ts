@@ -2,6 +2,16 @@ import { basename, dirname } from "node:path";
 
 const METHODS = new Set(["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]);
 
+// A moduleDir ("." at the src root) → its path/namespace segments. ONE place for
+// the "." special case (reused by lint, which nests the same way).
+export const segments = (moduleDir: string): string[] => moduleDir === '.' ? [] : moduleDir.split('/');
+
+// Build a URL path from a moduleDir + extra parts: join, drop empties, and turn
+// a leading-`$` segment into a `:param`. Shared by the route and middleware
+// branches so route paths and middleware prefixes parse identically.
+const toPath = (moduleDir: string, parts: string[]): string =>
+    '/' + [...segments(moduleDir), ...parts].filter(Boolean).map(s => s.startsWith('$') ? ':' + s.slice(1) : s).join('/');
+
 export type ProjectEntry =
     | { kind: "fn"; rel: string; moduleDir: string; fileName: string; runtimeName: string }
     | { kind: "type"; rel: string; moduleDir: string; fileName: string; typeName: string }
@@ -24,8 +34,7 @@ export default function (_ctx: Context, _session: Session | null, opts: { rel: s
     if (/^\$script_.+\.(js|mjs|css)$/.test(fileName)) {
         const m = /^\$script_(.+?)(\.\w+)$/.exec(fileName);
         if (!m || !m[1] || !m[2]) return { kind: 'skip', rel, moduleDir, fileName, reason: 'bad-script-name' };
-        const segs = moduleDir === '.' ? [] : moduleDir.split('/');
-        return { kind: 'script', rel, moduleDir, fileName, routePath: '/' + [...segs, m[1] + m[2]].join('/') };
+        return { kind: 'script', rel, moduleDir, fileName, routePath: '/' + [...segments(moduleDir), m[1] + m[2]].join('/') };
     }
 
     if (rel.endsWith('.d.ts')) return { kind: 'skip', rel, moduleDir, fileName, reason: 'dts' };
@@ -49,9 +58,7 @@ export default function (_ctx: Context, _session: Session | null, opts: { rel: s
         const method = idx === -1 ? rest : rest.slice(idx + 1);
         if (!METHODS.has(method)) return { kind: 'skip', rel, moduleDir, fileName, reason: 'bad-route-method' };
         const pathParts = pathRaw === '' ? [] : pathRaw.split('_');
-        const moduleSegments = moduleDir === '.' ? [] : moduleDir.split('/');
-        const allSegments = [...moduleSegments, ...pathParts].filter(Boolean).map(s => s.startsWith('$') ? ':' + s.slice(1) : s);
-        return { kind: 'route', rel, moduleDir, fileName, routePath: '/' + allSegments.join('/'), method };
+        return { kind: 'route', rel, moduleDir, fileName, routePath: toPath(moduleDir, pathParts), method };
     }
 
     // $middleware[_<path>].ts → runs before handlers under its path prefix; may
@@ -60,9 +67,7 @@ export default function (_ctx: Context, _session: Session | null, opts: { rel: s
     if (stem === '$middleware' || stem.startsWith('$middleware_')) {
         const rest = stem === '$middleware' ? '' : stem.slice('$middleware_'.length);
         const pathParts = rest === '' ? [] : rest.split('_');
-        const moduleSegments = moduleDir === '.' ? [] : moduleDir.split('/');
-        const segs = [...moduleSegments, ...pathParts].filter(Boolean).map(s => s.startsWith('$') ? ':' + s.slice(1) : s);
-        return { kind: 'middleware', rel, moduleDir, fileName, prefix: '/' + segs.join('/') };
+        return { kind: 'middleware', rel, moduleDir, fileName, prefix: toPath(moduleDir, pathParts) };
     }
 
     // $state_<key>.ts → declares the type of ctx.state.<key> (the file exports

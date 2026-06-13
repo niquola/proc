@@ -136,7 +136,7 @@ examples/               # apps, kept out of core
 └── todo/               # standalone app (boot from its own folder): htmx + Tailwind on db
 ```
 
-~1900 lines of framework, zero runtime dependencies beyond Bun itself.
+~2300 lines of framework, zero runtime dependencies beyond Bun itself.
 
 Handlers return whatever is convenient: a `Response` passes through, a `string` becomes an HTML page via the layout, `{ main, title }` likewise, anything else becomes JSON.
 

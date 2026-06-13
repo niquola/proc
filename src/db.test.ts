@@ -19,6 +19,13 @@ test("db.sql: compiles the query DSL (parameterized)", () => {
         .toEqual({ sql: "SELECT id, title FROM t WHERE done = ? AND id IN (?, ?) ORDER BY id LIMIT 5", params: [0, 1, 2] });
 });
 
+test("db.sql: operator object — multiple ops AND-join, {} is a no-op", () => {
+    expect(ctx.fns.db.sql({ from: "t", where: { age: { ">": 1, "<": 10 } } }))
+        .toEqual({ sql: "SELECT * FROM t WHERE age > ? AND age < ?", params: [1, 10] });
+    expect(ctx.fns.db.sql({ from: "t", where: { age: {} } }))
+        .toEqual({ sql: "SELECT * FROM t", params: [] });
+});
+
 test("db.insert + db.q: round-trip through the DSL", () => {
     ctx.fns.db.exec({ sql: "CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT, done INTEGER)" });
     ctx.fns.db.insert({ into: "notes", values: { body: "hi", done: 0 } });

@@ -7,13 +7,16 @@
 // Errors (syntax etc.) are logged + recorded on the error board, old version
 // keeps running.
 import { watch } from "node:fs";
-import { defineRootFn, collectStateFile } from "../loadFns";
+import { resolve } from "node:path";
+import { defineRootFn, collectStateFile, dottedName, STATE_KINDS } from "../loadFns";
 
 export default async function (ctx: Context, _session: Session | null, _opts?: {}) {
     const st = ctx.state as any;
     if (st.watcher) return { watching: 'already' };
 
-    const roots = await ctx.fns.project.roots({});
+    // Watch the APP's src (== proc's core when running proc itself), so an app
+    // booting proc as a dependency watches its own files, not proc's.
+    const srcDir = resolve(ctx.fns.project.projectRoot({}), 'src');
     const pending = new Set<string>();
     let timer: ReturnType<typeof setTimeout> | null = null;
 
@@ -27,7 +30,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
         // on the dir — expand directory events into their contained files.
         const files: string[] = [];
         for (const rel of batch) {
-            const abs = roots[0]!.dir + '/' + rel;
+            const abs = srcDir + '/' + rel;
             const stat = await Bun.file(abs).stat().catch(() => null);
             if (stat?.isDirectory()) {
                 const glob = new Bun.Glob('**/*');
@@ -45,18 +48,18 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
         for (const rel of files) {
             const entry = ctx.fns.project.classify({ rel });
             if (entry.kind === 'skip') continue;
-            const exists = await Bun.file(roots[0]!.dir + '/' + rel).exists();
+            const exists = await Bun.file(srcDir + '/' + rel).exists();
             if (!exists) { errors.delete(rel); needTypes = true; continue; } // deleted: types only, fn stays in memory
             try {
                 if (entry.kind === 'fn') {
                     if (entry.moduleDir === '.') {
-                        const m = await import(roots[0]!.dir + '/' + rel + `?t=${Date.now()}`);
+                        const m = await import(srcDir + '/' + rel + `?t=${Date.now()}`);
                         if (typeof m.default === 'function') {
                             defineRootFn(ctx, entry.runtimeName, m.default);
                             console.log(`[watch] ctx.${entry.runtimeName}  ←  ${rel}`);
                         }
                     } else {
-                        await ctx.fns.repl.load({ name: entry.moduleDir.replaceAll('/', '.') + '.' + entry.runtimeName });
+                        await ctx.fns.repl.load({ name: dottedName(entry) });
                     }
                     needTypes = true;
                     needReload = true;
@@ -65,8 +68,8 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
                     needReload = true;
                 } else if (entry.kind === 'type') {
                     needTypes = true;
-                } else if (entry.kind === 'config' || entry.kind === 'hook' || entry.kind === 'migration' || entry.kind === 'cli') {
-                    await collectStateFile(ctx, entry, roots[0]!.dir + "/" + rel);
+                } else if (STATE_KINDS.has(entry.kind)) {
+                    await collectStateFile(ctx, entry, srcDir + "/" + rel);
                     needTypes = true; // config slots show up in CtxState
                 }
                 errors.delete(rel);
@@ -85,7 +88,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
         }
     };
 
-    const watcher = watch(roots[0]!.dir, { recursive: true }, (_event, rel) => {
+    const watcher = watch(srcDir, { recursive: true }, (_event, rel) => {
         if (!rel) return;
         if (rel.endsWith('.d.ts')) return; // genTypes output — would loop
         if (rel.split('/').some(s => /^(_runtime|_test_.*|_tmp_.*|tmp_.*)$/.test(s))) return;
@@ -94,6 +97,6 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
         timer = setTimeout(() => { flush().catch(e => console.error('[watch]', e)); }, 100);
     });
     st.watcher = watcher;
-    console.log(`[watch] watching ${roots[0]!.dir}`);
-    return { watching: roots[0]!.dir };
+    console.log(`[watch] watching ${srcDir}`);
+    return { watching: srcDir };
 }

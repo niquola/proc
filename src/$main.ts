@@ -44,7 +44,7 @@ import { resolve } from "node:path";
 // Boot the framework for a project rooted at `root` (its src/ holds the app's
 // fns; package.json its config). proc's own core src is ALWAYS scanned too, so
 // an app gets http/repl/dev/config/lifecycle/… merged with its own code.
-// An app does:  import { boot } from "proc/$main"; await boot({ root: import.meta.dir })
+// An app does:  import { boot } from "proc"; await boot({ root: import.meta.dir })
 export async function boot(opts?: { root?: string }): Promise<Context> {
     const ctx = makeCtx();
     // Default root = proc's own repo root ($main.ts lives in src/). Apps pass theirs.

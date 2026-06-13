@@ -17,7 +17,7 @@ export default function (ctx: Context, _session: Session | null, opts: { module:
     let fromPkg: Record<string, any> = {};
     try {
         const pkg = JSON.parse(readFileSync(ctx.fns.project.projectRoot({}) + "/package.json", "utf8"));
-        fromPkg = pkg.proc?.prod?.[mod] ?? pkg.proc?.config?.[mod] ?? {};
+        fromPkg = pkg.proc?.prod?.[mod] ?? {};
     } catch { /* no package.json (e.g. prod bundle) → env-only */ }
 
     const fromEnv: Record<string, any> = {};

@@ -36,7 +36,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
         if (entry.kind !== 'fn' && entry.kind !== 'type' && entry.kind !== 'state') continue;
         // Import path is relative to src/ (where ctx_ns.d.ts lives), from the
         // REAL file (entry.abs) — so plugin files outside src/ resolve too.
-        let importPath = relative(srcDir, (entry as any).abs).replace(/\.ts$/, '');
+        let importPath = relative(srcDir, entry.abs).replace(/\.ts$/, '');
         if (!importPath.startsWith('.')) importPath = './' + importPath;
         if (entry.kind === 'state') {
             // The file exports `type <key>`; it types ctx.state.<key>.
@@ -83,7 +83,7 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
         'type Injected<F> = F extends (ctx: any, session: any, ...args: infer A) => infer R ? (...args: A) => R : never;',
         '',
         'declare global {',
-        ...globals,
+        ...globals.sort(), // deterministic order, like every other section (avoids d.ts churn)
         '',
         '    interface FnsRegistry {',
         ...emitFns(root, '        '),

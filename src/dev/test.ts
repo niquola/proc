@@ -3,10 +3,10 @@
 // server), returns pass/fail + the tail of the output.
 //   ctx.fns.dev.test({})                 → whole suite
 //   ctx.fns.dev.test({ filter: "math" }) → bun test's path/name filter
-export default async function (_ctx: Context, _session: Session | null, opts?: { filter?: string }) {
+export default async function (ctx: Context, _session: Session | null, opts?: { filter?: string }) {
     const args = ["test", ...(opts?.filter ? [opts.filter] : [])];
     const proc = Bun.spawn(["bun", ...args], {
-        cwd: import.meta.dir + "/../..",
+        cwd: ctx.fns.project.projectRoot({}), // the app's root (its tests), not proc's
         stdout: "pipe",
         stderr: "pipe",
     });

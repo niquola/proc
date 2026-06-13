@@ -12,6 +12,7 @@
 //      can't work with the Proxy, so we forbid the collision outright.
 //
 //   ctx.fns.dev.lint({})  → { ok, errors }  (logs each error unless silent)
+import { segments } from "../project/classify";
 const IDENT = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 export default async function (ctx: Context, _session: Session | null, opts?: { silent?: boolean }) {
@@ -21,7 +22,7 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
 
     for (const e of entries) {
         if (e.kind !== 'fn' && e.kind !== 'type') continue;
-        const segs = e.moduleDir === '.' ? [] : e.moduleDir.split('/');
+        const segs = segments(e.moduleDir);
         for (const s of segs) if (!IDENT.test(s)) errors.push(`invalid namespace segment "${s}"  (src/${e.rel}) — must be a valid identifier`);
         if (e.kind === 'fn') {
             if (!IDENT.test(e.runtimeName)) errors.push(`invalid function name "${e.runtimeName}"  (src/${e.rel}) — must be a valid identifier`);

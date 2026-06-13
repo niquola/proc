@@ -5,6 +5,7 @@
 // Bun.build can collapse every module into one file.
 //   ctx.fns.dev.manifest({ out: ".runtime/build/manifest.ts" })
 import { resolve, relative } from "node:path";
+import { setPath } from "../loadFns";
 
 export default async function (ctx: Context, _session: Session | null, opts?: { out?: string }) {
     const entries = await ctx.fns.project.scan({});
@@ -19,7 +20,8 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
     };
 
     const imports: string[] = [];
-    const fnTree: Record<string, string> = {};   // 'issues.add' -> localName
+    const reg: any = {};                          // nested registry: namespace=object, fn leaf=local var name (a string)
+    let fnCount = 0;
     const rootFns: Record<string, string> = {};
     const routeDefs: string[] = [];
     const middlewareDefs: string[] = [];
@@ -35,7 +37,7 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
             const local = "f" + (n++);
             imports.push(`import ${local} from "${rel(e.abs)}";`);
             if (e.moduleDir === ".") rootFns[e.runtimeName] = local;
-            else fnTree[e.moduleDir.replaceAll("/", ".") + "." + e.runtimeName] = local;
+            else { setPath(reg, [...e.moduleDir.split("/"), e.runtimeName], local); fnCount++; } // reuse loadFns' nesting
         } else if (e.kind === "route") {
             const local = "r" + (n++);
             imports.push(`import ${local} from "${rel(e.abs)}";`);
@@ -69,17 +71,13 @@ export default async function (ctx: Context, _session: Session | null, opts?: { 
     }
     const startOrder = await ctx.fns.lifecycle.order({});
 
-    // nested registry literal from dotted keys
-    const reg: any = {};
-    for (const [dotted, local] of Object.entries(fnTree)) {
-        const segs = dotted.split(".");
-        let t = reg;
-        for (let i = 0; i < segs.length - 1; i++) t = (t[segs[i]!] ??= {});
-        t[segs.at(-1)!] = { __local: local };
-    }
+    // Emit the registry literal: a string leaf is a fn (its local import name,
+    // emitted unquoted), an object is a nested namespace. Local names are f0/f1/…
+    // so a fn and a namespace can never be confused (the old {__local} sentinel
+    // broke on a fn literally named "__local").
     const emit = (o: any, ind = "  "): string =>
         Object.entries(o).map(([k, v]: any) =>
-            v.__local ? `${ind}${JSON.stringify(k)}: ${v.__local},`
+            typeof v === "string" ? `${ind}${JSON.stringify(k)}: ${v},`
                 : `${ind}${JSON.stringify(k)}: {\n${emit(v, ind + "  ")}\n${ind}},`
         ).join("\n");
     const emitRoot = Object.entries(rootFns).map(([k, l]) => `  ${JSON.stringify(k)}: ${l},`).join("\n");
@@ -117,5 +115,5 @@ ${cliDefs.join("\n")}
 };
 `;
     await Bun.write(out, src);
-    return { out, fns: Object.keys(fnTree).length, rootFns: Object.keys(rootFns).length, routes: routeDefs.length };
+    return { out, fns: fnCount, rootFns: Object.keys(rootFns).length, routes: routeDefs.length };
 }

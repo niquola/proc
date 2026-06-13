@@ -11,8 +11,12 @@ export default function (_ctx: Context, _session: Session | null, opts: { argv: 
         const a = rest[i]!;
         if (a.startsWith("--")) {
             const eq = a.indexOf("=");
+            // Next token is the value unless it's another flag — but a negative
+            // number (`--offset -5`) is a value, not a flag.
+            const nv = rest[i + 1];
+            const isValue = nv !== undefined && (!nv.startsWith("-") || /^-\d/.test(nv));
             if (eq !== -1) out[a.slice(2, eq)] = a.slice(eq + 1);
-            else if (rest[i + 1] && !rest[i + 1]!.startsWith("-")) out[a.slice(2)] = rest[++i];
+            else if (isValue) out[a.slice(2)] = rest[++i];
             else out[a.slice(2)] = true;
         } else if (a.startsWith("-")) {
             out[a.slice(1)] = true;

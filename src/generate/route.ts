@@ -7,9 +7,8 @@ export default async function (ctx: Context, _session: Session | null, opts: { m
     if (!METHODS.has(method)) throw new Error(`bad method: ${method}`);
     if (!/^[a-zA-Z_][\w/]*$/.test(mod)) throw new Error(`bad module: ${mod}`);
 
-    const roots = await ctx.fns.project.roots({});
     const rel = `${mod}/$route_${path}_${method}.ts`;
-    const abs = `${roots[0]!.dir}/${rel}`;
+    const abs = `${ctx.fns.project.projectRoot({})}/src/${rel}`; // app src, not proc core
     if (await Bun.file(abs).exists()) throw new Error(`already exists: src/${rel}`);
 
     const routePath = '/' + [...mod.split('/'), ...path.split('_')].filter(Boolean)

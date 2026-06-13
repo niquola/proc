@@ -24,9 +24,12 @@ function whereClause(where: Record<string, any> | undefined, params: any[]): str
             parts.push(`${col} IN (${v.map(() => "?").join(", ")})`);
             params.push(...v);
         } else if (v && typeof v === "object") {
-            const [op, val] = Object.entries(v)[0]!;
-            parts.push(`${col} ${op} ?`);
-            params.push(val);
+            // { col: { ">": n } } — one entry per operator, AND-joined. An empty
+            // {} contributes no clause (no stray `col  ?`).
+            for (const [op, val] of Object.entries(v)) {
+                parts.push(`${col} ${op} ?`);
+                params.push(val);
+            }
         } else if (v === null) {
             parts.push(`${col} IS NULL`);
         } else {

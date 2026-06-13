@@ -249,7 +249,7 @@ bun dist/app.js                               # runs standalone: no src/, no nod
 
 The bundle sets `NODE_ENV=production`, so the dev machinery is gone by construction: no scan, no dynamic import, no genTypes/watch at boot, and `/repl` returns 403. Fast cold start, single deployable artifact.
 
-Current limits (Later): `$script_*` browser assets aren't pre-bundled into the artifact, and routes that read sibling files via `import.meta.dir` (e.g. `events/$route_client.js_GET.ts`) break in the bundle — inline such assets (Bun `with { type: "text" }`) or pre-build them. Types are stripped (a runtime concern they aren't).
+Current limits (Later): `$script_*` browser assets aren't pre-bundled into the artifact. A route that needs a sibling asset should inline it with a text import (Bun `with { type: "text" }`) — as `events/$route_client.js_GET.ts` now does — instead of reading it via `import.meta.dir` at runtime (which the bundle can't resolve). Types are stripped (a runtime concern they aren't).
 
 ## Watcher (src/dev/watch.ts) — opt-in, for editor-driven changes
 
@@ -308,7 +308,7 @@ A pure handler can also just be called directly; `dispatch` is preferred because
 The environment is a property of the **ctx**, not the process — derived from `ctx.env.NODE_ENV` (`production`→`prod`, `test`→`test`, else `dev`). So a test environment can coexist with dev in one running process / REPL.
 
 - `ctx.fns.env.mode()` → `"prod" | "test" | "dev"`.
-- `ctx.fns.env.pick({ test?, dev?, prod? })` → the value for this ctx's mode (falls back test→dev→prod). The idiomatic way to vary config — a config fn is just a function: `// src/db/url.ts` → `export default (ctx) => ctx.fns.env.pick({ test: ":memory:", dev: "data/dev.sqlite", prod: ctx.env.DATABASE_URL })`.
+- `ctx.fns.env.pick({ test?, dev?, prod? })` → the value for this ctx's mode (if absent, falls back to dev, then prod — never to test). A lightweight way to vary a value by env — a config fn is just a function: `export default (ctx) => ctx.fns.env.pick({ test: ":memory:", dev: "data/dev.sqlite", prod: ctx.env.DATABASE_URL })`. (Module config proper goes through `$config.ts` + `config.resolve` — see `db/url.ts`.)
 - `ctx.fns.env.fork({ mode })` → a derived ctx that **shares the registry + routes (same code)** but has its **own env and own `state`** (own db connection, events, caches). This is what lets a test env live next to dev:
 
 ```ts
@@ -338,7 +338,7 @@ Caveat: `.env` selection happens **at process start**, before our code runs, so 
 
 Not core, but the canonical example of env-aware, ctx-scoped state. A thin `bun:sqlite` layer whose **connection lives in `ctx.state.db`** (per-ctx, not a module global) — so `env.fork` gives each environment an isolated database:
 
-- `db.url()` → `env.pick({ test: ":memory:", dev: "data/dev.sqlite", prod: ctx.env.DATABASE_URL })`
+- `db.url()` → `config.resolve({ module: "db" }).url` (defaults < `package.json` proc.prod.db < `DATABASE_URL`; `:memory:` in test)
 - `db.conn()` → lazily opens + caches the `Database` on `ctx.state.db`
 - `db.query/run/exec/close` — thin helpers (positional `[..]` or named `{$x}` params)
 
