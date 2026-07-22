@@ -1,22 +1,29 @@
-// Send a user message to the agent; updates stream back through receive().
+// The public way to send a message. Everything the user types comes through
+// here; sendPrompt is the unconditional send underneath it.
+//
+// The order of the three checks is the policy. While the agent is starting we
+// must not touch it, so the message waits. Otherwise a message is enough reason
+// to spawn the agent — this is the only place that starts it on demand. After
+// the start, a turn may already be in flight; `agent.prompt` is checked next to
+// `status` because the promise is set before the status flip, and a message
+// arriving in that window belongs in the queue too.
 export default async function (ctx: Context, _session: Session | null, opts: { text: string }) {
     const agent = ctx.state.agent;
-    if (!agent?.acp) await ctx.fns.agent.start({});
-    const live = ctx.state.agent;
-    if (!live.acp) return { status: live.status, error: live.error };
 
-    live.messages.push({ id: crypto.randomUUID(), role: "user", kind: "text", text: opts.text, at: new Date().toISOString() });
-    live.status = "running";
-    ctx.fns.events.emit({ event: { type: "agent" } });
+    if (agent.status === "starting") {
+        agent.queue.push({ id: crypto.randomUUID(), text: opts.text });
+        ctx.fns.events.emit({ event: { type: "agent" } });
+        return { status: agent.status, queued: true };
+    }
 
-    // Don't block the request: the answer arrives as session updates.
-    void live.acp.prompt({ sessionId: live.session, prompt: [{ type: "text", text: opts.text }] })
-        .then(() => { live.status = "idle"; ctx.fns.events.emit({ event: { type: "agent" } }); })
-        .catch((error: any) => {
-            live.status = "idle";
-            live.error = String(error?.message ?? error);
-            ctx.fns.events.emit({ event: { type: "agent" } });
-        });
+    if (!agent.acp || !agent.process) await ctx.fns.agent.start({});
 
-    return { status: live.status };
+    if (agent.status === "running" || agent.prompt) {
+        agent.queue.push({ id: crypto.randomUUID(), text: opts.text });
+        ctx.fns.events.emit({ event: { type: "agent" } });
+        return { status: agent.status, queued: true };
+    }
+
+    ctx.fns.agent.sendPrompt({ text: opts.text });
+    return { status: agent.status };
 }

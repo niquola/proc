@@ -26,6 +26,7 @@ export async function testCtx(opts?: { root?: string }): Promise<Context> {
     try {
         await loadFns(ctx, null, {});
         await ctx.fns.http.loadRoutes({});
+        await ctx.fns.migrate.up({}); // the layout renders the chat, which reads agent_messages
     } finally { console.log = log; }
     return ctx;
 }

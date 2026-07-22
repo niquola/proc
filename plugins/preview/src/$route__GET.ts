@@ -1,15 +1,16 @@
-// GET /preview — show the running app in a frame. ?url= overrides the default.
+// GET /preview — the app under development, framed edge to edge. No shell bar:
+// the workspace already knows the address (services.env) and the app draws its
+// own chrome, so anything we add here is a second, competing one. ?url= still
+// overrides what is framed.
 export default async function (ctx: Context, _session: Session, opts: { req: Request }) {
     const url = new URL(opts.req.url).searchParams.get("url") || ctx.fns.preview.url({});
+
     return {
         title: "preview",
-        main: `<form data-form="preview" class="flex gap-2 mb-3" method="get" action="/preview">
-  <input name="url" value="${esc(url)}" class="flex-1 rounded border border-gray-300 px-3 py-1 font-mono text-xs">
-  <button data-action="open" class="rounded bg-gray-900 text-white px-3 py-1">Open</button>
-</form>
-<iframe src="${esc(url)}" class="w-full h-[calc(100vh-11rem)] border border-gray-200 rounded"></iframe>`,
+        main: `<iframe id="preview-frame" src="${esc(url)}" class="block h-[calc(100vh-6rem)] w-[calc(100%+3rem)] -m-6 bg-bg-content"></iframe>`,
     };
 }
+
 
 function esc(s: any): string {
     return String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]!));

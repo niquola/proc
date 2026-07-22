@@ -1,35 +1,47 @@
-// Fold one ACP session update into the transcript. Text and thinking arrive as
-// chunks and are appended to the last message of the same kind; tool calls are
-// their own entries, updated in place as they progress.
-export default function (ctx: Context, _session: Session | null, opts: { update: any }) {
+// The ACP ingress: every session update the agent pushes lands here. It splits
+// in two — updates that carry session state (config, mode, usage, title,
+// commands) are folded into ctx.state.agent, updates that carry transcript
+// (chunks, tool calls, plans) go to publish, which owns the rows.
+//
+// Two orderings matter: trackTiming runs BEFORE publish, because it stamps the
+// elapsed bounds onto the update that publish then persists; and publish runs
+// even when the state fold threw, so a bad field can never swallow a message.
+export default function (ctx: Context, _session: Session | null, opts: { update: any }): void {
     const agent = ctx.state.agent;
     const u = opts.update;
-    const kind = u.sessionUpdate;
+    const kind = u?.sessionUpdate;
 
-    if (kind === "config_option_update") {
-        agent.config = u.configOptions;
-        ctx.fns.events.emit({ event: { type: "agent" } });
-        return;
+    ctx.fns.log.debug({ event: "agent.update", msg: kind, status: u?.status });
+
+    // loadSession replays the entire transcript on restore. The rows are already
+    // in sqlite, so the replay is dropped rather than duplicated.
+    if (agent?.loading) return;
+
+    try {
+        ctx.fns.agent.trackTiming({ update: u });
+
+        let changed = true;
+        if (kind === "config_option_update") agent.config = u.configOptions;
+        else if (kind === "current_mode_update") agent.currentModeId = u.currentModeId;
+        else if (kind === "available_commands_update") agent.commands = u.availableCommands;
+        else if (kind === "usage_update") agent.usage = { used: u.used, size: u.size };
+        else if (kind === "session_info_update") {
+            // An empty title means cleared; anything but a title is not ours.
+            const title = (typeof u.title === "string" ? u.title.trim() : "") || undefined;
+            if ("title" in u && title !== agent.title) {
+                agent.title = title;
+                ctx.fns.agent.saveState({});
+            }
+        } else changed = false;
+
+        if (changed) ctx.fns.events.emit({ event: { type: "agent" } });
+    } catch (error) {
+        ctx.fns.log.error({ event: "agent.update.failed", msg: String(error), kind });
     }
 
-    if (kind === "agent_message_chunk" || kind === "agent_thought_chunk") {
-        append(agent, kind === "agent_thought_chunk" ? "thought" : "text", u.content?.text ?? "");
-    } else if (kind === "tool_call" || kind === "tool_call_update") {
-        const id = u.toolCallId ?? crypto.randomUUID();
-        const existing = agent.messages.find(m => m.id === id);
-        const text = (u.content ?? []).map((c: any) => c.content?.text ?? c.text ?? "").join("");
-        if (existing) Object.assign(existing, { title: u.title ?? existing.title, status: u.status ?? existing.status, text: text || existing.text });
-        else agent.messages.push({ id, role: "agent", kind: "tool", title: u.title ?? u.kind ?? "tool", status: u.status, text, at: new Date().toISOString() });
-    } else {
-        return;
+    try {
+        ctx.fns.agent.publish({ update: u, source: "agent" });
+    } catch (error) {
+        ctx.fns.log.error({ event: "agent.publish.failed", msg: String(error), kind });
     }
-
-    agent.status = "running";
-    ctx.fns.events.emit({ event: { type: "agent" } });
-}
-
-function append(agent: any, kind: string, text: string): void {
-    const last = agent.messages[agent.messages.length - 1];
-    if (last && last.role === "agent" && last.kind === kind) last.text += text;
-    else agent.messages.push({ id: crypto.randomUUID(), role: "agent", kind, text, at: new Date().toISOString() });
 }

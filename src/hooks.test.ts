@@ -11,7 +11,8 @@ test("hooks: register + run (fan-out, in order) + first", async () => {
     expect(await ctx.fns.hooks.run({ name: "none" })).toEqual([]);
 });
 
-test("hooks: $hook_<name>.ts auto-registers (hello plugin's greet)", async () => {
-    const [greeting] = await ctx.fns.hooks.run({ name: "greet", opts: { name: "proc" } });
-    expect(greeting).toContain("proc");
+test("hooks: $hook_<name>.ts auto-registers (the aidbox plugin's service provider)", async () => {
+    // plugins/aidbox answers `"aidbox": {}` in workspace.json through this hook
+    const spec = await ctx.fns.hooks.first({ name: "service.aidbox", opts: { name: "aidbox", spec: {} } });
+    expect(spec).toBeTruthy();
 });

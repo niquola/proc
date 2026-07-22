@@ -132,7 +132,6 @@ src/
 └── $test.ts            # test harness: testCtx() gives a loaded ctx, no server
 
 examples/               # apps, kept out of core
-├── hello/              # plugin: fn + route + $middleware + $state + $hook + $migration
 └── todo/               # standalone app (boot from its own folder): htmx + Tailwind on db
 ```
 

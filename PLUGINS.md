@@ -35,7 +35,7 @@ Declare them in the **host** `package.json`; `from` is exactly what `bun add` ta
 { "proc": { "plugins": [
     { "from": "proc-auth" },                       // npm
     { "from": "github:acme/proc-billing" },        // git
-    { "from": "file:./examples/hello" },           // local path
+    { "from": "file:./examples/todo" },            // local path
     { "from": "proc-auth", "as": "auth2" }          // `as` remounts under a different
 ] } }                                               // namespace to resolve a collision
 ```

@@ -8,16 +8,63 @@ declare global {
 
     interface FnsRegistry {
         agent: {
-            chat: Injected<typeof import("./agent/chat").default>;
+            callAcp: Injected<typeof import("./agent/callAcp").default>;
+            cancel: Injected<typeof import("./agent/cancel").default>;
+            checkCredentials: Injected<typeof import("./agent/checkCredentials").default>;
+            classifyError: Injected<typeof import("./agent/classifyError").default>;
+            clearConnection: Injected<typeof import("./agent/clearConnection").default>;
+            closeSession: Injected<typeof import("./agent/closeSession").default>;
+            decidePermission: Injected<typeof import("./agent/decidePermission").default>;
+            dequeue: Injected<typeof import("./agent/dequeue").default>;
+            finishPrompt: Injected<typeof import("./agent/finishPrompt").default>;
+            handleClose: Injected<typeof import("./agent/handleClose").default>;
+            handleExit: Injected<typeof import("./agent/handleExit").default>;
             injectContext: Injected<typeof import("./agent/injectContext").default>;
             messages: Injected<typeof import("./agent/messages").default>;
-            models: Injected<typeof import("./agent/models").default>;
+            openSession: Injected<typeof import("./agent/openSession").default>;
+            options: Injected<typeof import("./agent/options").default>;
             prompt: Injected<typeof import("./agent/prompt").default>;
+            publish: Injected<typeof import("./agent/publish").default>;
+            readStderr: Injected<typeof import("./agent/readStderr").default>;
             receive: Injected<typeof import("./agent/receive").default>;
-            setModel: Injected<typeof import("./agent/setModel").default>;
+            resetSession: Injected<typeof import("./agent/resetSession").default>;
+            resolveCommand: Injected<typeof import("./agent/resolveCommand").default>;
+            restoreSession: Injected<typeof import("./agent/restoreSession").default>;
+            runPrompt: Injected<typeof import("./agent/runPrompt").default>;
+            saveMessage: Injected<typeof import("./agent/saveMessage").default>;
+            saveState: Injected<typeof import("./agent/saveState").default>;
+            search: Injected<typeof import("./agent/search").default>;
+            sendPrompt: Injected<typeof import("./agent/sendPrompt").default>;
+            setConfig: Injected<typeof import("./agent/setConfig").default>;
+            setMode: Injected<typeof import("./agent/setMode").default>;
+            settleTools: Injected<typeof import("./agent/settleTools").default>;
             start: Injected<typeof import("./agent/start").default>;
             stop: Injected<typeof import("./agent/stop").default>;
+            trackTiming: Injected<typeof import("./agent/trackTiming").default>;
             writeHelpers: Injected<typeof import("./agent/writeHelpers").default>;
+        };
+        chat: {
+            answer: Injected<typeof import("./chat/answer").default>;
+            bubble: Injected<typeof import("./chat/bubble").default>;
+            column: Injected<typeof import("./chat/column").default>;
+            composer: Injected<typeof import("./chat/composer").default>;
+            controls: Injected<typeof import("./chat/controls").default>;
+            error: Injected<typeof import("./chat/error").default>;
+            escape: Injected<typeof import("./chat/escape").default>;
+            markdown: Injected<typeof import("./chat/markdown").default>;
+            models: Injected<typeof import("./chat/models").default>;
+            notice: Injected<typeof import("./chat/notice").default>;
+            plan: Injected<typeof import("./chat/plan").default>;
+            queue: Injected<typeof import("./chat/queue").default>;
+            reply: Injected<typeof import("./chat/reply").default>;
+            runState: Injected<typeof import("./chat/runState").default>;
+            send: Injected<typeof import("./chat/send").default>;
+            thought: Injected<typeof import("./chat/thought").default>;
+            toolMeta: Injected<typeof import("./chat/toolMeta").default>;
+            toolRow: Injected<typeof import("./chat/toolRow").default>;
+            tools: Injected<typeof import("./chat/tools").default>;
+            transcript: Injected<typeof import("./chat/transcript").default>;
+            usage: Injected<typeof import("./chat/usage").default>;
         };
         cli: {
             list: Injected<typeof import("./cli/list").default>;

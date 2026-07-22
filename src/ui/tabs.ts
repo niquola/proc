@@ -1,7 +1,9 @@
 // The plugin tab strip. Rendered inside the layout, and again out of band after
 // an htmx partial swap so the active tab follows the URL.
 export default function (ctx: Context, _session: Session | null, opts: { path?: string; oob?: boolean }): string {
-    const plugins: string[] = ctx.state.plugins ?? [];
+    // Preview leads: it is what the workspace is for — the app being built.
+    const mounted: string[] = ctx.state.plugins ?? [];
+    const plugins = [...mounted].sort((a, b) => Number(b === "preview") - Number(a === "preview"));
     const path = opts.path ?? "/";
     const tab = (p: string) => {
         const active = path === `/${p}` || path.startsWith(`/${p}/`);

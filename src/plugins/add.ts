@@ -1,7 +1,7 @@
 // Install + mount a plugin on the fly (no restart).
 //   ctx.fns.plugins.add({ from: "proc-auth" })                 // npm
 //   ctx.fns.plugins.add({ from: "github:acme/proc-billing" })  // git
-//   ctx.fns.plugins.add({ from: "file:./examples/hello" })     // local
+//   ctx.fns.plugins.add({ from: "file:./examples/todo" })      // local
 // `from` is exactly what `bun add` takes (Bun pulls the plugin's deps too).
 // Persists the entry in host package.json "proc.plugins" so boot re-mounts it.
 import { resolve, dirname } from "node:path";
