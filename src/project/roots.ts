@@ -1,4 +1,9 @@
 import { resolve, dirname } from "node:path";
+import { readdir } from "node:fs/promises";
+// Bootstrap path: roots runs before the registry exists, so these are imported
+// directly rather than called through ctx.fns.
+import projectRootFn from "./projectRoot";
+import pluginPaths from "./pluginPaths";
 
 // Scan roots = the app's src/ (namespace "") + proc's own core src (the
 // framework: http/repl/dev/config/lifecycle/…) + each declared plugin's src.
@@ -8,9 +13,9 @@ import { resolve, dirname } from "node:path";
 // Plugins come from the APP's package.json (ctx.state.root).
 export type Root = { name: string; dir: string; namespace: string };
 
-export default async function (ctx: Context, _session: Session | null, _opts?: {}): Promise<Root[]> {
-    const coreSrc = resolve(import.meta.dir, "..");                 // proc/src — this file lives in src/project/
-    const projectRoot = ctx.state.root ?? resolve(coreSrc, "..");  // app root (default: proc's repo root)
+export default async function (ctx: Context, session: Session | null, _opts?: {}): Promise<Root[]> {
+    const coreSrc = resolve(import.meta.dir, "..");        // proc/src — this file lives in src/project/
+    const projectRoot = projectRootFn(ctx, session, {});   // boot({root}) / proc's repo root
     const appSrc = resolve(projectRoot, "src");
 
     // core first, then app — so the app OVERRIDES core defaults (e.g. its own
@@ -34,6 +39,18 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
             out.push({ name: ns, dir: resolve(dir, man.src ?? "src"), namespace: ns });
         } catch (e: any) {
             console.warn(`[plugins] skip "${spec.from}": ${e?.message ?? e}`);
+        }
+    }
+
+    // Any directory under PLUGIN_PATHS that ships an atomic-workspace.json is a
+    // plugin: the project's own plugins/ and every skill directory.
+    for (const searchDir of await pluginPaths(ctx, session, {})) {
+        for (const name of await readdir(searchDir).catch(() => [] as string[])) {
+            const dir = resolve(searchDir, name);
+            const man = await Bun.file(dir + "/atomic-workspace.json").json().catch(() => null);
+            if (!man) continue;
+            const ns = man.namespace ?? name;
+            out.push({ name: ns, dir: resolve(dir, man.src ?? "src"), namespace: ns });
         }
     }
 

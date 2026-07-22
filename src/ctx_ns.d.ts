@@ -7,6 +7,18 @@ declare global {
     type Session = import("./$type_Session").Session;
 
     interface FnsRegistry {
+        agent: {
+            chat: Injected<typeof import("./agent/chat").default>;
+            injectContext: Injected<typeof import("./agent/injectContext").default>;
+            messages: Injected<typeof import("./agent/messages").default>;
+            models: Injected<typeof import("./agent/models").default>;
+            prompt: Injected<typeof import("./agent/prompt").default>;
+            receive: Injected<typeof import("./agent/receive").default>;
+            setModel: Injected<typeof import("./agent/setModel").default>;
+            start: Injected<typeof import("./agent/start").default>;
+            stop: Injected<typeof import("./agent/stop").default>;
+            writeHelpers: Injected<typeof import("./agent/writeHelpers").default>;
+        };
         cli: {
             list: Injected<typeof import("./cli/list").default>;
             parse: Injected<typeof import("./cli/parse").default>;
@@ -48,13 +60,17 @@ declare global {
             reload: Injected<typeof import("./events/reload").default>;
             subscribe: Injected<typeof import("./events/subscribe").default>;
         };
+        filemanager: {
+            list: Injected<typeof import("../plugins/filemanager/src/list").default>;
+        };
+        form: {
+            ask: Injected<typeof import("../plugins/form/src/ask").default>;
+            render: Injected<typeof import("../plugins/form/src/render").default>;
+        };
         generate: {
             fn: Injected<typeof import("./generate/fn").default>;
             module: Injected<typeof import("./generate/module").default>;
             route: Injected<typeof import("./generate/route").default>;
-        };
-        hello: {
-            world: Injected<typeof import("../examples/hello/src/world").default>;
         };
         hooks: {
             first: Injected<typeof import("./hooks/first").default>;
@@ -87,20 +103,49 @@ declare global {
             status: Injected<typeof import("./migrate/status").default>;
             up: Injected<typeof import("./migrate/up").default>;
         };
+        page: {
+            click: Injected<typeof import("./page/click").default>;
+            eval: Injected<typeof import("./page/eval").default>;
+            fill: Injected<typeof import("./page/fill").default>;
+            open: Injected<typeof import("./page/open").default>;
+            openTab: Injected<typeof import("./page/openTab").default>;
+            submit: Injected<typeof import("./page/submit").default>;
+            tabs: Injected<typeof import("./page/tabs").default>;
+            text: Injected<typeof import("./page/text").default>;
+        };
         plugins: {
             add: Injected<typeof import("./plugins/add").default>;
             list: Injected<typeof import("./plugins/list").default>;
             remove: Injected<typeof import("./plugins/remove").default>;
         };
+        preview: {
+            url: Injected<typeof import("../plugins/preview/src/url").default>;
+        };
         project: {
             classify: Injected<typeof import("./project/classify").default>;
+            pluginPaths: Injected<typeof import("./project/pluginPaths").default>;
             projectRoot: Injected<typeof import("./project/projectRoot").default>;
             roots: Injected<typeof import("./project/roots").default>;
             scan: Injected<typeof import("./project/scan").default>;
+            workdir: Injected<typeof import("./project/workdir").default>;
         };
         repl: {
             eval: Injected<typeof import("./repl/eval").default>;
             load: Injected<typeof import("./repl/load").default>;
+        };
+        services: {
+            env: Injected<typeof import("./services/env").default>;
+            freePort: Injected<typeof import("./services/freePort").default>;
+            logs: Injected<typeof import("./services/logs").default>;
+            manifest: Injected<typeof import("./services/manifest").default>;
+            resolve: Injected<typeof import("./services/resolve").default>;
+            restart: Injected<typeof import("./services/restart").default>;
+            start: Injected<typeof import("./services/start").default>;
+            status: Injected<typeof import("./services/status").default>;
+            stop: Injected<typeof import("./services/stop").default>;
+        };
+        ui: {
+            tabs: Injected<typeof import("./ui/tabs").default>;
         };
     }
 
@@ -111,8 +156,14 @@ declare global {
     }
 
     namespace types {
+        namespace agent {
+            type Message = import("./agent/$type_Message").Message;
+        }
         namespace db {
             type Query = import("./db/$type_Query").Query;
+        }
+        namespace form {
+            type Field = import("../plugins/form/src/$type_Field").Field;
         }
         namespace log {
             type LogRecord = import("./log/$type_LogRecord").LogRecord;
@@ -120,7 +171,9 @@ declare global {
     }
 
     interface CtxState {
-        hello: import("../examples/hello/src/$state_hello").hello;
+        agent: import("./agent/$state_agent").agent;
+        forms: import("../plugins/form/src/$state_forms").forms;
+        page: import("./page/$state_page").page;
     }
 }
 export {};

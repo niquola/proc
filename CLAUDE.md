@@ -2,6 +2,8 @@
 
 A minimal procedural (FP-style) framework: functions on disk → `ctx.fns` registry at runtime. The file name determines what a file is (function, route, type, script). No imports between modules — everything is called through `ctx`. The live server is modified through the REPL and hot-reload, never restarted.
 
+It also **is a workspace**: it supervises the project in `WORKDIR` (services from `workspace.json`, each on a free port), hosts a chat with an ACP coding agent, renders a plugin UI around it, and drives that UI by injecting JS into the open page — see *Workspace* below.
+
 Extracted from `~/workspaces-template` and `~/hyper-code2` (core only: registry + web + REPL + generators, no domain modules).
 
 ## Running
@@ -141,9 +143,42 @@ await boot({ root: import.meta.dir });    // root = this app's folder
 
 `boot({ root })` scans **two roots**: the app's `src/` (its fns/routes, at the root namespace `""`) **+ proc's own core** (`http`/`repl`/`dev`/`config`/`lifecycle`/… — always), merged into one `ctx.fns`. The **project root** (`ctx.state.root`) — where `package.json`, `src`, and the generated `ctx_ns.d.ts` live — is configurable, defaulting to proc's own repo root (so `bun src/$main.ts` and `testCtx()` without a root just work). Everything that reads `package.json` (`project.roots`/`config.resolve`/`lifecycle.order`/`plugins.*` via `ctx.fns.project.projectRoot`) or writes types (`genTypes`) honors it. The app scanned **last** overrides core defaults (e.g. its `GET /` home wins over proc's). Tests boot an app root with `testCtx({ root })`. Example: `examples/todo` (`cd examples/todo && bun index.ts`).
 
-## Plugins (src/plugins/, PLUGINS.md)
+## Plugins — two ways to mount (src/plugins/, src/project/pluginPaths.ts, PLUGINS.md)
 
-A plugin is a package (local dir / npm / git) with a `proc` field in its `package.json` (`{ namespace, src }`) and a `src/` tree of normal proc functions. Declared in the **host** `package.json` `proc.plugins: [{ from }]` (`from` = a `bun add` spec). `project/roots.ts` resolves each plugin's dir and `project/scan.ts` prefixes its namespace onto each file's path before `classify` (keeping `abs` at the real file) — so plugin code merges into the **one shared `ctx.fns`** under its namespace (`auth/login.ts` → `ctx.fns.auth.login`, route → `GET /auth/...`) and flows through loadFns / genTypes / lint / loadRoutes / manifest+build unchanged. `genTypes` and `dev.manifest` import by path relative to `entry.abs`, so plugin files outside `src/` are typed and bundled into the single `dist/app.js`. `dev.lint` guards namespace collisions across plugins. Surface: `ctx.fns.plugins.add({from})` (bun add → persist → remount, dev-only), `.list({})`, `.remove({from})`. Broken plugins are logged + skipped at boot. Example: `examples/hello`. Full guide in PLUGINS.md.
+**By discovery (the workspace way).** Every subdirectory of `PLUGIN_PATHS` that ships an `atomic-workspace.json` (`{ namespace?, src? }`; namespace defaults to the folder name) is mounted automatically — no entry in `package.json`. Defaults cover the project's own `plugins/` plus every place skills live (`~/.claude/skills`, `~/.agent/skills`, `~/.codex/skills`, `<root>/.claude/skills`, `<root>/.agents/skills`), symlink-deduped via `realpath`. This is how `plugins/filemanager`, `plugins/preview`, `plugins/services` (namespace `processes`), `plugins/form` and `plugins/aidbox` are loaded. `ctx.state.plugins` holds the mounted namespaces (filled by `loadFns`) — the layout renders one tab per namespace.
+
+**By declaration (npm/git).** A plugin is a package (local dir / npm / git) with a `proc` field in its `package.json` (`{ namespace, src }`) and a `src/` tree of normal proc functions. Declared in the **host** `package.json` `proc.plugins: [{ from }]` (`from` = a `bun add` spec). `project/roots.ts` resolves each plugin's dir and `project/scan.ts` prefixes its namespace onto each file's path before `classify` (keeping `abs` at the real file) — so plugin code merges into the **one shared `ctx.fns`** under its namespace (`auth/login.ts` → `ctx.fns.auth.login`, route → `GET /auth/...`) and flows through loadFns / genTypes / lint / loadRoutes / manifest+build unchanged. `genTypes` and `dev.manifest` import by path relative to `entry.abs`, so plugin files outside `src/` are typed and bundled into the single `dist/app.js`. `dev.lint` guards namespace collisions across plugins. Surface: `ctx.fns.plugins.add({from})` (bun add → persist → remount, dev-only), `.list({})`, `.remove({from})`. Broken plugins are logged + skipped at boot. Example: `examples/hello`. Full guide in PLUGINS.md.
+
+## Workspace — supervising a project (src/services/, src/project/workdir.ts)
+
+`WORKDIR` is the project the workspace works on (the file manager lists it, the agent runs in it); `projectRoot` stays where `src/` and `package.json` live. `WORKDIR/workspace.json` declares what to run, GitHub-Actions style — the service **name is its type**:
+
+```jsonc
+{ "services": {
+    "aidbox": { "license": "…" },                                   // a request: whoever can, provides it
+    "aidbox": { "url": "http://localhost:8765" },                    // or point at an existing instance
+    "app":    { "cmd": ["bun", "run", "dev"], "portEnv": "PORT" } } } // or say how to run it
+```
+
+`services.resolve` passes any declaration without `cmd`/`url` to the `service.<name>` hook — that is how `plugins/aidbox/src/$hook_service.aidbox.ts` turns `"aidbox": {}` into `docker compose up aidbox` (or into an external URL when `AIDBOX_BASE_URL` is set). `services.env` assigns a **free port** per `portEnv` (which may name several variables), publishes `urlEnv`, resolves `${NAME}` references, and hands **one shared environment to every service** — so the app sees `AIDBOX_BASE_URL` without any glue. Surface: `services.start/stop/restart/status/logs` (logs are an in-memory ring buffer). `$start.ts` brings everything up with the workspace.
+
+## The agent (src/agent/)
+
+An ACP coding agent runs over `WORKDIR` and appears as the chat in the left column. `agent.start` spawns `@agentclientprotocol/claude-agent-acp` over stdio (`ClientSideConnection` + `ndJsonStream`), `receive` folds session updates into a transcript (text/thinking chunks append, tool calls update in place), `prompt` sends without blocking, `models`/`setModel` switch the model through the ACP config option.
+
+Before opening the session it prepares the workdir: `writeHelpers` generates `.workspace/repl` and `.workspace/app-repl` (code as argument or on stdin) and adds them to `.git/info/exclude`; `injectContext` rewrites a managed block at the top of `WORKDIR/CLAUDE.md` between `<!-- workspace-runtime:start/end -->` with this run's ports, service table, injected env, REPL recipes, UI control and the form protocol. Both are regenerated on every start — that is how the agent learns what it may do here.
+
+## Driving the UI by injection (src/page/, src/ui/tabs.ts)
+
+There is no browser inside the workspace: the runtime is the user's open tab. `page.eval` pushes `{type:"eval", id, code}` down the SSE stream, the layout's handler runs it as an async function body and posts the result to `POST /page/result`, where the pending promise resolves.
+
+Navigation is partial: `toResponse` returns just `main` (plus the tab strip with `hx-swap-oob`) when `HX-Request` is set, tabs are `hx-get`/`hx-target="#main"`/`hx-push-url`, and `page.open` injects `htmx.ajax(...)` + `history.pushState`. The URL changes while the chat, the event stream and this bridge stay alive — **never** navigate with a full reload.
+
+Address controls by the data-* convention, never by CSS selectors: `page.fill({form, values})` and `page.submit({form})` work on `[data-form="…"]`, `page.click({action, entity, id})` on `[data-action]` scoped by `[data-entity][data-id]`. Plugins mark their controls accordingly.
+
+## Forms as a question to the user (plugins/form/)
+
+`form.ask({title, fields})` stores a form, opens it in the right pane, and on submit `POST /form/:id` records the answer **and feeds it back into the agent session** as a chat message — the round trip from agent to human and back without polling. Field types: `text`, `textarea`, `number`, `date`, `select` (`options`), `checkbox`.
 
 ## Working with types
 
@@ -415,6 +450,21 @@ bun script/repl.ts 'await ctx.fns.dev.sync({ rel: "<module>/<file>.ts" }); ctx.f
 **2. Small functions / iterations** — `dev.def` + verification in one round-trip (see the dev.def section). Con: inside `code: \`...\`` you must escape nested \` and \${ — for code with HTML templates this gets painful fast, use path 1.
 
 Battle-tested: state functions via `ctx.state` persist between calls; forms (`req.formData()` + `Response.redirect`) work; `def`/`sync` can be defined through themselves.
+
+### Hot-reload through the REPL — no watcher needed
+
+A one-shot `bun script/repl.ts '<code>'` evals **two `Object.create` layers below the root ctx** the server reads (the server derives a request-ctx, then `repl.eval` derives another). That changes what reaches the running server:
+
+- **Module fns** (`mod/fn.ts` → `ctx.fns.mod.fn`) reload cleanly — `ctx.fns.repl.load({ name: "mod.fn" })` mutates the **shared** `ctx.state.registry` (inherited by reference), so the server sees the new version at once. Whole module: `repl.load({ name: "mod" })`.
+- **Routes** and **root `$fn.ts`** do NOT reach the server if reloaded on the eval ctx: `loadRoutes` does `ctx.routes = …` and `defineRootFn` defines an own getter — both land on the throwaway child, leaving the root (and the server) stale. To register/replace/delete a route on the fly, reach the **root ctx** first, then load there:
+
+```js
+// write the route file, then:
+let root = ctx; while (Object.getPrototypeOf(root) !== Object.prototype) root = Object.getPrototypeOf(root);
+await root.fns.http.loadRoutes({});   // ctx.routes mutation now hits the object the server reads → new path is live
+```
+
+Guidance: prefer **module fns over root `$fn.ts`** (a module fn reloads with plain `repl.load`; a shared nav/helper belongs in e.g. `ui/nav.ts`, not `$nav.ts`). To add/change/delete a route live, write the file then run `loadRoutes` on the **root** ctx as above. No restart, no `WATCH=1`.
 
 Rules:
 - Don't import project functions from each other — only calls via `ctx.fns`. External libs and `node:` modules are fine to import

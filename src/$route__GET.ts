@@ -1,23 +1,15 @@
-// GET / — home page: list registered functions and routes.
+// GET / — home: what this workspace has mounted.
 export default async function (ctx: Context, _session: Session, _opts: { req: Request }) {
-    const fnRows: string[] = [];
-    walk((ctx.state as any).registry, [], fnRows);
-    const routeRows = Object.entries(ctx.routes).flatMap(([path, methods]) =>
-        Object.keys(methods).map(m => `<tr><td class="pr-4 font-mono text-xs">${m}</td><td class="font-mono text-xs">${path}</td></tr>`));
+    const plugins: string[] = ctx.state.plugins ?? [];
     return {
         title: "home",
-        main: `<h1 class="text-xl font-semibold mb-4">procs</h1>
-<h2 class="font-semibold mt-6 mb-2">routes</h2>
-<table>${routeRows.join("")}</table>
-<h2 class="font-semibold mt-6 mb-2">functions (ctx.fns)</h2>
-<div class="font-mono text-xs leading-5">${fnRows.join("<br>")}</div>`,
+        main: `<h1 class="text-lg font-semibold mb-1">procs</h1>
+<div class="text-xs text-gray-500 font-mono mb-4">workdir: ${esc(ctx.fns.project.workdir({}))}</div>
+<h2 class="font-semibold mb-2">plugins</h2>
+<ul class="space-y-1">${plugins.map(p => `<li><a class="text-blue-700 hover:underline" href="/${esc(p)}">${esc(p)}</a></li>`).join("")}</ul>`,
     };
 }
 
-function walk(obj: any, path: string[], out: string[]) {
-    for (const k of Object.keys(obj).sort()) {
-        const v = obj[k];
-        if (typeof v === "function") out.push(["ctx.fns", ...path, k].join("."));
-        else if (v && typeof v === "object") walk(v, [...path, k], out);
-    }
+function esc(s: any): string {
+    return String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]!));
 }

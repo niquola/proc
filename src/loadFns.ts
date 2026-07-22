@@ -8,6 +8,9 @@ import { relative, resolve } from "node:path";
 export default async function (ctx: Context, _session: Session | null, _opts: {}): Promise<void> {
     const { default: scan } = await import("./project/scan?t=" + Date.now());
     const entries = await scan(ctx, null, {});
+    // Mounted plugin namespaces, kept on state so the layout (sync) can render
+    // them without rescanning.
+    ctx.state.plugins = [...new Set(entries.map(e => e.namespace).filter(Boolean))].sort();
 
     for (const entry of entries) {
         // $config/$hook/$migration/$cli → collected into ctx.state (shared with
