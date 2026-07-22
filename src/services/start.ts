@@ -1,66 +1,58 @@
-// Start one service from workspace.json (or all of them) in WORKDIR, with the
-// workspace-assigned ports in its environment. Replaces process-compose.
-const LOG_LINES = 500;
-
-export default async function (ctx: Context, _session: Session | null, opts: { name?: string }) {
-    const specs = await ctx.fns.services.resolve({});
-    if (!opts.name) {
-        const started = [];
-        for (const name of Object.keys(specs)) started.push(await ctx.fns.services.start({ name }));
-        return started;
-    }
-
+// Bring one service up. This is the human/boot entry: it resets the restart
+// counter (clicking start on a crashed service always buys a fresh set of
+// attempts), waits for the services it `needs`, and hands over to spawn. The
+// backoff loop in superviseExit calls spawn directly, so neither the reset nor
+// the dependency wait ever runs on a retry.
+//
+// There is no topological sort: a dependency that is idle is started here and
+// then awaited, so the order falls out of the recursion and independent
+// services still come up in parallel (the needs are awaited together, and
+// startAll starts every service at once). resolve's cycle check is what keeps
+// the recursion finite.
+//
+// `state = "starting"` is set before the first await and is also the guard, so
+// two callers — startAll and a dependent, or a double-click — cannot reach
+// spawn twice, and the card says "starting" while the service waits for aidbox.
+//
+// A dependency that does not turn ready in time does not block us: we record
+// the reason on the card and start anyway. A dev workspace printing a
+// connection error beats one that silently never starts.
+export default async function (ctx: Context, _session: Session | null, opts: { name: string }): Promise<types.services.Service> {
     const name = opts.name;
-    const spec = specs[name];
-    if (!spec) throw new Error(`no such service in workspace.json: ${name}`);
+    // A service added to workspace.json after boot has no record yet.
+    if (!ctx.state.services?.[name]) await ctx.fns.services.track({});
+    const service: types.services.Service | undefined = ctx.state.services?.[name];
+    if (!service) throw new Error(`no such service in workspace.json: ${name}`);
+    if (service.state === "starting" || service.state === "running") return service;
 
-    const services = (ctx.state.services ??= {});
-    if (services[name]?.proc?.exitCode === null) return describe(services[name]);
+    // An armed backoff timer belongs to the crash loop we are overruling.
+    clearTimeout(service.timer);
+    service.timer = undefined;
+    service.wanted = "up";
+    service.restarts = 0;
+    service.error = undefined;
+    service.state = "starting";
+    ctx.fns.events.emit({ event: { type: "service", name } });
 
-    const env = await ctx.fns.services.env({});
-    // External service: nothing to run, its address is already published.
-    if (!spec.cmd) {
-        const external = { name, cmd: [], cwd: null, url: spec.url, port: null, env, pid: null, startedAt: null, external: true, provider: spec.provider, logs: [] };
-        services[name] = external;
-        return describe(external);
+    // External: nothing to run, the address is already published. Marking it
+    // ready is what lets dependents through waitReady.
+    if (!service.spec.cmd) {
+        service.ready = true;
+        service.state = "running";
+        service.url ??= service.spec.url;
+        ctx.fns.events.emit({ event: { type: "service", name } });
+        return service;
     }
-    const cwd = ctx.fns.project.workdir({});
-    const logs: string[] = [];
-    const proc = Bun.spawn(spec.cmd!, { cwd, env: { ...process.env, ...env }, stdout: "pipe", stderr: "pipe" });
-    const service = {
-        name,
-        provider: spec.provider,
-        cmd: spec.cmd!,
-        cwd,
-        port: spec.portEnv ? Number(env[[spec.portEnv].flat()[0]]) : null,
-        url: spec.urlEnv ? env[spec.urlEnv] : null,
-        env,
-        pid: proc.pid,
-        startedAt: new Date().toISOString(),
-        proc,
-        logs,
-    };
-    services[name] = service;
 
-    for (const stream of [proc.stdout, proc.stderr]) void collect(stream as ReadableStream, logs);
-    ctx.fns.log.info({ event: "service.started", msg: `${name} pid ${proc.pid}`, name, port: service.port, pid: proc.pid });
-    return describe(service);
-}
+    await Promise.all(service.spec.needs.map(async (need: string) => {
+        if (ctx.state.services?.[need]?.state === "idle") await ctx.fns.services.start({ name: need });
+        if (await ctx.fns.services.waitReady({ name: need })) return;
+        service.error = `started before ${need} was ready`;
+        ctx.fns.log.warn({ event: "service.needs.timeout", msg: `${name} ${service.error}`, service: name, needs: need });
+    }));
 
-async function collect(stream: ReadableStream, logs: string[]): Promise<void> {
-    const decoder = new TextDecoder();
-    for await (const chunk of stream as any) {
-        for (const line of decoder.decode(chunk).split("\n")) {
-            if (!line) continue;
-            logs.push(line);
-            if (logs.length > LOG_LINES) logs.shift();
-        }
-    }
-}
-
-function describe(s: any) {
-    return {
-        name: s.name, provider: s.provider, port: s.port, url: s.url, pid: s.pid, cmd: s.cmd, cwd: s.cwd, env: s.env,
-        startedAt: s.startedAt, external: !!s.external, running: s.external ? true : s.proc.exitCode === null,
-    };
+    // A stop while we were waiting for the dependencies wins — read it back off
+    // the record rather than off the local, which is stale by a minute by now.
+    if (ctx.state.services?.[name]?.wanted === "down") return service;
+    return ctx.fns.services.spawn({ name });
 }

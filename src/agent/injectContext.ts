@@ -27,8 +27,10 @@ function section(ctx: Context): string {
     const port = ctx.fns.config.resolve({ module: "http" }).port;
     const app = services.find((s: any) => s.name === "app");
     const env = ctx.state.serviceEnv ?? {};
+    // `sh -lc` is how a string cmd runs, not what the manifest says — show the line.
+    const command = (cmd: string[] = []) => (cmd[0] === "/bin/sh" ? cmd[2] : cmd.join(" ")) || "external";
     const rows = services.map((s: any) =>
-        `| \`${s.name}\` | ${s.url ?? (s.port ? `http://localhost:${s.port}` : "—")} | ${s.running ? "running" : "stopped"} | ${s.cmd?.join(" ") || "external"} |`).join("\n");
+        `| \`${s.name}\` | ${s.url ?? "—"} | ${s.state}${s.state === "running" && !s.ready ? " (not ready yet)" : ""} | ${s.restarts} | ${command(s.cmd)} |`).join("\n");
     const envRows = Object.entries(env)
         .filter(([k]) => !k.includes("LICENSE"))
         .map(([k, v]) => `\`${k}=${v}\``).join(" · ");
@@ -39,9 +41,12 @@ You are working inside a **live workspace**: the services below are already
 running, supervised by a workspace process on port ${port}. Ports are assigned per
 run — read them here or from \`services.status\`, never hardcode them.
 
-| service | address | state | command |
-|---|---|---|---|
+| service | address | state | restarts | command |
+|---|---|---|---|---|
 ${rows}
+
+A service is **running** once its process is up and **ready** once its probe
+passed — \`needs\` in workspace.json waits for the second, not the first.
 
 Environment injected into every service: ${envRows || "—"}
 
@@ -86,6 +91,9 @@ Namespaces: ${Object.keys(ctx.state.registry).sort().map(n => `\`${n}\``).join("
 
 # lifecycle — restart keeps the same ports, stop/start are per service
 .workspace/repl 'await ctx.fns.services.restart({ name: "app" })'
+
+# …and wait for it to answer again before you test against it
+.workspace/repl 'await ctx.fns.services.waitReady({ name: "app" })'
 
 # what the workspace considers the project and its plugins
 .workspace/repl 'ctx.fns.project.workdir({})'

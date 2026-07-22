@@ -168,6 +168,13 @@ declare global {
         preview: {
             url: Injected<typeof import("../plugins/preview/src/url").default>;
         };
+        processes: {
+            card: Injected<typeof import("../plugins/services/src/card").default>;
+            escape: Injected<typeof import("../plugins/services/src/escape").default>;
+            list: Injected<typeof import("../plugins/services/src/list").default>;
+            logs: Injected<typeof import("../plugins/services/src/logs").default>;
+            panel: Injected<typeof import("../plugins/services/src/panel").default>;
+        };
         project: {
             classify: Injected<typeof import("./project/classify").default>;
             pluginPaths: Injected<typeof import("./project/pluginPaths").default>;
@@ -181,15 +188,22 @@ declare global {
             load: Injected<typeof import("./repl/load").default>;
         };
         services: {
+            captureLogs: Injected<typeof import("./services/captureLogs").default>;
             env: Injected<typeof import("./services/env").default>;
             freePort: Injected<typeof import("./services/freePort").default>;
             logs: Injected<typeof import("./services/logs").default>;
             manifest: Injected<typeof import("./services/manifest").default>;
+            probeReady: Injected<typeof import("./services/probeReady").default>;
             resolve: Injected<typeof import("./services/resolve").default>;
             restart: Injected<typeof import("./services/restart").default>;
+            spawn: Injected<typeof import("./services/spawn").default>;
             start: Injected<typeof import("./services/start").default>;
+            startAll: Injected<typeof import("./services/startAll").default>;
             status: Injected<typeof import("./services/status").default>;
             stop: Injected<typeof import("./services/stop").default>;
+            superviseExit: Injected<typeof import("./services/superviseExit").default>;
+            track: Injected<typeof import("./services/track").default>;
+            waitReady: Injected<typeof import("./services/waitReady").default>;
         };
         ui: {
             tabs: Injected<typeof import("./ui/tabs").default>;
@@ -215,12 +229,18 @@ declare global {
         namespace log {
             type LogRecord = import("./log/$type_LogRecord").LogRecord;
         }
+        namespace services {
+            type Line = import("./services/$type_Line").Line;
+            type Service = import("./services/$type_Service").Service;
+            type Spec = import("./services/$type_Spec").Spec;
+        }
     }
 
     interface CtxState {
         agent: import("./agent/$state_agent").agent;
         forms: import("../plugins/form/src/$state_forms").forms;
         page: import("./page/$state_page").page;
+        services: import("./services/$state_services").services;
     }
 }
 export {};

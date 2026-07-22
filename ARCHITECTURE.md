@@ -72,8 +72,11 @@ lists them — **the name is the type**:
 
 ```jsonc
 { "services": {
-    "aidbox": { "license": "…" },                                    // a request
-    "app":    { "cmd": ["bun", "run", "dev"], "portEnv": "PORT" } } } // or a recipe
+    "aidbox":   { "license": "…" },                                  // a request
+    "temporal": { "cmd": "docker compose up temporal", "portEnv": ["TEMPORAL_PORT"],
+                  "publish": { "TEMPORAL_ADDRESS": "localhost:${TEMPORAL_PORT}" } },
+    "app":      { "cmd": "bun run dev", "portEnv": "PORT",
+                  "needs": ["aidbox", "temporal"], "ready": { "http": "/" } } } }
 ```
 
 `services.resolve` uses a declaration as-is when it already says `cmd` (run this)
@@ -81,21 +84,58 @@ or `url` (it exists, just publish the address). Otherwise the declaration is a
 request, and it is handed to the `service.<name>` hook — whichever plugin can
 provide that service answers. `plugins/aidbox` does exactly this: with an
 external `AIDBOX_BASE_URL` it returns that URL, otherwise it returns
-`docker compose up aidbox` plus the ports and credentials Aidbox needs. Swapping
-a local container for a shared instance is one line in the manifest, not a
-branch in the code.
+`docker compose up aidbox` plus the ports, the readiness probe and the
+credentials Aidbox needs. Swapping a local container for a shared instance is one
+line in the manifest, not a branch in the code. `resolve` is also the only place
+defaults live, and where a manifest that contradicts itself throws — a `needs`
+cycle, a `needs` on nothing, two services publishing the same key.
 
-`services.env` computes the environment **once** per run: a free port
-(`Bun.serve({port:0})`) for every name in `portEnv`, the resulting address in
-`urlEnv`, `${NAME}` references resolved — and hands that one environment to every
-service. This is why the app finds Aidbox without any glue: both were started
-with the same `AIDBOX_BASE_URL`. Ports are unique per run, so several workspaces
-coexist on one machine; restarts keep the assigned ports because the environment
-is cached in `ctx.state.serviceEnv`.
+`services.env` computes the environment: a free port (`Bun.serve({port:0})`) for
+every name in `portEnv`, the resulting address in `urlEnv`, everything a service
+`publish`es, `${NAME}` references resolved — and hands that one environment to
+every service. This is why the app finds Aidbox without any glue: both were
+started with the same `AIDBOX_BASE_URL`. `env` on a declaration is the exception:
+it belongs to that one child (a license, a database password), so it never
+reaches the others. Ports are unique per run, so several workspaces coexist on
+one machine, and `ctx.state.serviceEnv` only ever *fills in* what is missing —
+restarts keep their address, and a service added to the manifest after boot gets
+one without moving anybody else's.
 
-`services.start/stop/restart/status/logs` are the surface; logs are an in-memory
-ring buffer per service, so there are no files to tail. `$start.ts` brings
-everything up with the workspace and `$stop.ts` takes it down.
+**Readiness is a start gate, not a monitor.** A service declares `ready` as
+`{http:"/path"}` (any answer below 500), `{tcp:true}` (the default once the
+workspace assigned it a port) or `{log:"substring"}`; nothing declared means ready
+as soon as it is spawned. `needs` waits for *ready*, not merely started, so there
+is no sort function anywhere: `start` awaits the services it needs (starting an
+idle one itself), independent services still come up in parallel, and the cycle
+check keeps the recursion finite. A dependency that misses its `ready.timeout`
+does not block the dependent — it starts anyway and says so on its card. Nothing
+probes a service after it is up: a process that is alive but sick is something you
+read the logs of, and killing it would delete the evidence.
+
+**A crash is an exit while the supervisor still wants the service up.** `stop`
+(and therefore `restart`) sets `wanted = "down"` before it signals, so an intended
+exit costs nothing. A real crash retries with a delay that doubles from `backoff`
+up to 30 s and gives up after `maxRestarts` consecutive tries — the counter resets
+after ten seconds of healthy uptime, so a service that dies once an hour restarts
+forever and one that dies in 200 ms lands in `crashed` with its exit code and its
+logs still on screen. A clean exit is not a failure (`restart: "on-failure"` is the
+default). Children are spawned `detached`, so `stop` signals the whole process
+group — SIGTERM, five seconds, SIGKILL — which is what takes `sh -lc "…"` down
+together with the bun or docker under it, leaving no orphan on a port.
+
+`services.start/stop/restart/status/logs/waitReady` are the surface; logs are an
+in-memory ring per service (2000 lines, ANSI stripped, one monotonic `seq` per
+line), so there are no files to tail. One record per *declared* service lives on
+`ctx.state.services` and is never deleted while it runs — a stopped service keeps
+its card, its logs and its port. `$start.ts` brings everything up with the
+workspace and `$stop.ts` takes it down.
+
+The `processes` tab renders those records directly. Two streams carry it: every
+state transition emits `{type:"service"}` on the shared `/events` stream and the
+list refetches itself, while log lines go over a per-service SSE cursor
+(`/processes/:name/logs/stream`, resumed by `Last-Event-ID`) — the ring is the
+transcript, the stream only walks it, so a reconnect replays nothing and a chatty
+service cannot flood the other tabs.
 
 ## The agent: a session over WORKDIR
 

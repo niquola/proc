@@ -1,25 +1,41 @@
-// The environment every service is started with: a free port per service that
-// asks for one, the resulting URL for whoever needs the address, and each
-// service's own env with ${NAME} references resolved. Computed once and kept on
-// ctx.state.serviceEnv, so restarts keep the same ports.
-export default async function (ctx: Context, _session: Session | null, _opts?: {}): Promise<Record<string, string>> {
-    if (ctx.state.serviceEnv) return ctx.state.serviceEnv;
+// The shared environment every service is started with: WORKDIR, the manifest's
+// own `env`, a free port per variable named in `portEnv`, the resulting address
+// for `urlEnv`, and everything providers `publish`. Values may reference each
+// other (and the process env) as ${NAME}.
+//
+// It lives on ctx.state.serviceEnv and only ever *fills in* what is missing, so
+// a restart keeps its ports and a service added to workspace.json after boot
+// gets one without moving anybody else's.
+//
+// With `name` the service's own `env` is overlaid on a copy — that block belongs
+// to one child and is never merged into the shared environment.
+export default async function (ctx: Context, _session: Session | null, opts?: { name?: string }): Promise<Record<string, string>> {
+    const specs = await ctx.fns.services.resolve({});
+    const manifest = await ctx.fns.services.manifest({});
+    const env: Record<string, string> = (ctx.state.serviceEnv ??= { WORKDIR: ctx.fns.project.workdir({}) });
 
-    const services = await ctx.fns.services.resolve({});
-    const env: Record<string, string> = { WORKDIR: ctx.fns.project.workdir({}) };
-    for (const spec of Object.values(services)) {
-        // portEnv may name several variables (a service with side ports, like a
-        // database next to it); the first one is the service's own port.
-        for (const name of [spec.portEnv ?? []].flat()) env[name] = String(ctx.fns.services.freePort({}));
+    // Ports first, because everything else may interpolate them. portEnv may
+    // name several variables (a database next to the service); the first one is
+    // the service's own port, and that is the one urlEnv points at.
+    for (const spec of Object.values(specs) as any[]) {
+        for (const key of [spec.portEnv ?? []].flat()) env[key] ??= String(ctx.fns.services.freePort({}));
         // External services publish their address as given; started ones publish
         // the port the workspace just handed them.
-        if (spec.urlEnv) env[spec.urlEnv] = spec.url ?? `http://localhost:${env[[spec.portEnv].flat()[0]] ?? ""}`;
+        if (spec.urlEnv) env[spec.urlEnv] ??= spec.url ?? `http://localhost:${env[[spec.portEnv ?? []].flat()[0]] ?? ""}`;
     }
-    for (const spec of Object.values(services)) {
-        for (const [key, value] of Object.entries(spec.env ?? {})) {
-            env[key] = value.replace(/\$\{(\w+)\}/g, (_m, name) => env[name] ?? process.env[name] ?? "");
-        }
+
+    for (const [key, value] of Object.entries(manifest.env ?? {})) env[key] = expand(String(value), env);
+    for (const spec of Object.values(specs) as any[]) {
+        for (const [key, value] of Object.entries(spec.publish ?? {})) env[key] = expand(String(value), env);
     }
-    ctx.state.serviceEnv = env;
-    return env;
+
+    if (!opts?.name) return env;
+    const own = (specs as any)[opts.name]?.env ?? {};
+    const merged = { ...env };
+    for (const [key, value] of Object.entries(own)) merged[key] = expand(String(value), merged);
+    return merged;
+}
+
+function expand(value: string, env: Record<string, string>): string {
+    return value.replace(/\$\{(\w+)\}/g, (_m, name) => env[name] ?? process.env[name] ?? "");
 }
