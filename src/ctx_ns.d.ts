@@ -45,7 +45,16 @@ declare global {
         };
         aidbox: {
             compose: Injected<typeof import("../plugins/aidbox/src/compose").default>;
+            request: Injected<typeof import("../plugins/aidbox/src/request").default>;
+            sql: Injected<typeof import("../plugins/aidbox/src/sql").default>;
             writeCompose: Injected<typeof import("../plugins/aidbox/src/writeCompose").default>;
+        };
+        app: {
+            patients: {
+                fhir: Injected<typeof import("../../../workspace-template-2/src/patients/fhir").default>;
+                name: Injected<typeof import("../../../workspace-template-2/src/patients/name").default>;
+                search: Injected<typeof import("../../../workspace-template-2/src/patients/search").default>;
+            };
         };
         chat: {
             answer: Injected<typeof import("./chat/answer").default>;
@@ -229,6 +238,15 @@ declare global {
         };
         ui: {
             tabs: Injected<typeof import("./ui/tabs").default>;
+        };
+        viewdef: {
+            columns: Injected<typeof import("../plugins/viewdef/src/columns").default>;
+            load: Injected<typeof import("../plugins/viewdef/src/load").default>;
+            local: Injected<typeof import("../plugins/viewdef/src/local").default>;
+            materialize: Injected<typeof import("../plugins/viewdef/src/materialize").default>;
+            preview: Injected<typeof import("../plugins/viewdef/src/preview").default>;
+            rows: Injected<typeof import("../plugins/viewdef/src/rows").default>;
+            table: Injected<typeof import("../plugins/viewdef/src/table").default>;
         };
     }
 

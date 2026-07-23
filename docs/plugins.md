@@ -39,8 +39,9 @@ writes its sentence once.
 
 `"optional": true` is how a plugin ships with the workspace without being in
 every project: it is discovered, listed in the catalogue, and mounted only once
-`workspace.json` names it. `plugins/questionnaire` is one — a FHIR form library
-is not something every project wants a tab for.
+`workspace.json` names it. `plugins/questionnaire` and `plugins/viewdef` are
+both this — a FHIR form library and a SQL-on-FHIR inspector are not things every
+project wants a tab for.
 
 `"preview"` claims a kind of file. A `$qr_*.json` is not JSON to a person, it is
 a form, so the file manager stops highlighting it and calls

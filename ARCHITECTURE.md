@@ -80,9 +80,10 @@ the UI grows by itself. The older declarative path (`proc.plugins` in
 Shipped plugins: `filemanager` (browse WORKDIR, markdown and syntax-highlighted
 code), `preview` (the app under development in a frame), `services` → namespace
 `processes` (what is running, its logs, restart/stop), `aidbox` (a *provider*,
-no UI — see below), and `questionnaire`, which is `"optional": true` — it ships
-with the workspace but waits to be named in `workspace.json`, because a FHIR form
-library is not something every project wants a tab for.
+no UI — see below), plus two that are `"optional": true` — they ship with the
+workspace but wait to be named in `workspace.json`: `questionnaire` (the FHIR
+form library) and `viewdef` (SQL-on-FHIR ViewDefinitions, their columns and the
+rows their tables hold).
 
 The manager at `/plugins` is where this is visible and changeable: every mounted
 plugin with a badge per face, what the project declared but has not fetched, and

@@ -1,0 +1,9 @@
+{
+  "namespace": "viewdef",
+  "src": "src",
+  "label": "Views",
+  "icon": "ph-table",
+  "description": "SQL-on-FHIR ViewDefinitions: what the project flattens FHIR into, its columns, and the rows the tables actually hold.",
+  "optional": true,
+  "preview": { "files": "$viewdef_*.json", "fn": "preview" }
+}
