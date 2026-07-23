@@ -1,19 +1,26 @@
-// The plugin tab strip. Rendered inside the layout, and again out of band after
-// an htmx partial swap so the active tab follows the URL.
+// The plugin tab strip, as wmlet draws it: an icon and a label per tab, the
+// active one in full black over a 2px underline, everything else muted until
+// hover. Rendered inside the layout, and again out of band after an htmx
+// partial swap so the active tab follows the URL.
+//
+// The tabs are plain links: hx-boost on the pane turns them into partial swaps,
+// so wmlet's tab client (click handlers, pinning) has nothing left to do here.
 export default function (ctx: Context, _session: Session | null, opts: { path?: string; oob?: boolean }): string {
-    // Preview leads: it is what the workspace is for — the app being built.
-    const mounted: string[] = ctx.state.plugins ?? [];
-    const plugins = [...mounted].sort((a, b) => Number(b === "preview") - Number(a === "preview"));
+    // A plugin gets a tab when it answers GET /<namespace> — a library or a bare
+    // skill has nothing to show. Preview leads: it is what the workspace is for.
+    const plugins = (ctx.state.plugins ?? []).filter(p => p.tab)
+        .sort((a, b) => Number(b.namespace === "preview") - Number(a.namespace === "preview"));
     const path = opts.path ?? "/";
-    const tab = (p: string) => {
-        const active = path === `/${p}` || path.startsWith(`/${p}/`);
-        const style = active ? "border-gray-900 text-gray-900" : "border-transparent text-gray-500 hover:text-gray-900";
-        return `<a class="h-full flex items-center border-b-2 ${style}" href="/${esc(p)}"
-      hx-get="/${esc(p)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">${esc(p)}</a>`;
+    const tab = (p: (typeof plugins)[number]) => {
+        const active = path === `/${p.namespace}` || path.startsWith(`/${p.namespace}/`);
+        return `<a class="ui-tab${active ? " is-active" : ""}" role="tab" aria-selected="${active}" href="/${esc(p.namespace)}"
+      hx-get="/${esc(p.namespace)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true"
+    ><i class="ph ${esc(p.icon)} ui-tab__icon" aria-hidden="true"></i><span class="ui-tab__label">${esc(p.label)}</span></a>`;
     };
-    return `<nav id="tabs"${opts.oob ? ` hx-swap-oob="true"` : ""} class="h-12 shrink-0 border-b border-gray-200 flex items-center gap-4 px-4">
-${plugins.map(tab).join("")}
-  <a class="text-gray-400 hover:text-gray-900 ml-auto" href="/fns">functions</a>
+    return `<nav id="tabs"${opts.oob ? ` hx-swap-oob="true"` : ""} class="h-12 shrink-0 flex items-center justify-between gap-4 px-3 bg-bg-tertiary border-b border-border-separator">
+  <div class="ui-tabbar" role="tablist">${plugins.map(tab).join("")}</div>
+  <a class="ui-tabbar__add${path.startsWith("/plugins") ? " is-active" : ""}" href="/plugins" title="Plugins" aria-label="Plugins"
+    hx-get="/plugins" hx-target="#main" hx-swap="innerHTML" hx-push-url="true"><i class="ph ph-puzzle-piece" aria-hidden="true"></i></a>
 </nav>`;
 }
 

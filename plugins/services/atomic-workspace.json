@@ -1,4 +1,6 @@
 {
   "namespace": "processes",
-  "src": "src"
+  "src": "src",
+  "label": "Services",
+  "icon": "ph-stack"
 }

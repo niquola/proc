@@ -125,10 +125,6 @@ declare global {
             listing: Injected<typeof import("../plugins/filemanager/src/listing").default>;
             render: Injected<typeof import("../plugins/filemanager/src/render").default>;
         };
-        form: {
-            ask: Injected<typeof import("../plugins/form/src/ask").default>;
-            render: Injected<typeof import("../plugins/form/src/render").default>;
-        };
         generate: {
             fn: Injected<typeof import("./generate/fn").default>;
             module: Injected<typeof import("./generate/module").default>;
@@ -146,6 +142,9 @@ declare global {
             match: Injected<typeof import("./http/match").default>;
             middleware: Injected<typeof import("./http/middleware").default>;
             toResponse: Injected<typeof import("./http/toResponse").default>;
+        };
+        labs: {
+            panels: Injected<typeof import("../../../workspace-template-2/.claude/skills/labs/src/panels").default>;
         };
         lifecycle: {
             order: Injected<typeof import("./lifecycle/order").default>;
@@ -177,7 +176,13 @@ declare global {
         };
         plugins: {
             add: Injected<typeof import("./plugins/add").default>;
+            catalog: Injected<typeof import("./plugins/catalog").default>;
+            describe: Injected<typeof import("./plugins/describe").default>;
+            fetch: Injected<typeof import("./plugins/fetch").default>;
             list: Injected<typeof import("./plugins/list").default>;
+            panel: Injected<typeof import("./plugins/panel").default>;
+            readDeclared: Injected<typeof import("./plugins/readDeclared").default>;
+            reload: Injected<typeof import("./plugins/reload").default>;
             remove: Injected<typeof import("./plugins/remove").default>;
         };
         preview: {
@@ -198,6 +203,15 @@ declare global {
             roots: Injected<typeof import("./project/roots").default>;
             scan: Injected<typeof import("./project/scan").default>;
             workdir: Injected<typeof import("./project/workdir").default>;
+        };
+        questionnaire: {
+            generate: Injected<typeof import("../plugins/questionnaire/src/generate").default>;
+            load: Injected<typeof import("../plugins/questionnaire/src/load").default>;
+            local: Injected<typeof import("../plugins/questionnaire/src/local").default>;
+            render: Injected<typeof import("../plugins/questionnaire/src/render").default>;
+            results: Injected<typeof import("../plugins/questionnaire/src/results").default>;
+            search: Injected<typeof import("../plugins/questionnaire/src/search").default>;
+            styles: Injected<typeof import("../plugins/questionnaire/src/styles").default>;
         };
         repl: {
             eval: Injected<typeof import("./repl/eval").default>;
@@ -239,9 +253,6 @@ declare global {
         namespace db {
             type Query = import("./db/$type_Query").Query;
         }
-        namespace form {
-            type Field = import("../plugins/form/src/$type_Field").Field;
-        }
         namespace log {
             type LogRecord = import("./log/$type_LogRecord").LogRecord;
         }
@@ -255,8 +266,8 @@ declare global {
     interface CtxState {
         agent: import("./agent/$state_agent").agent;
         appRoots: import("./project/$state_appRoots").appRoots;
-        forms: import("../plugins/form/src/$state_forms").forms;
         page: import("./page/$state_page").page;
+        plugins: import("./plugins/$state_plugins").plugins;
         services: import("./services/$state_services").services;
     }
 }

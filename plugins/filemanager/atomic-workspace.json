@@ -1,4 +1,6 @@
 {
   "namespace": "filemanager",
-  "src": "src"
+  "src": "src",
+  "label": "Files",
+  "icon": "ph-folder-open"
 }

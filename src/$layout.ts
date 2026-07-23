@@ -64,6 +64,10 @@ export default function (ctx: Context, session: Session | null, opts: { title?: 
     --color-brand-hover: #284e8b;
     --color-brand-disabled: rgba(52, 97, 168, 0.5);
     --color-accent-soft: rgba(52, 97, 168, 0.08);
+    --color-text-primary: #1c1917;
+    --color-text-muted: #57534e;
+    --color-text-tertiary: #78716c;
+    --color-bg-tint-hover: #ebebe8;
   }
   body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; }
 
@@ -125,6 +129,31 @@ export default function (ctx: Context, session: Session | null, opts: { title?: 
     background: var(--color-bg-tertiary); border-bottom: 1px solid #e7e5e4;
   }
   .ui-pane-header { flex-shrink: 0; border-bottom: 1px solid #e7e5e4; background: var(--color-bg-tertiary); display: flex; align-items: center; min-height: 52px; }
+
+  /* the plugin tab strip (src/ui/tabs.ts) */
+  .ui-tabbar { display: flex; align-items: stretch; align-self: stretch; gap: 2px; height: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .ui-tabbar::-webkit-scrollbar { display: none; }
+  .ui-tab {
+    display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px;
+    height: 100%; padding: 0 10px; position: relative;
+    font-size: 13px; font-weight: 500; color: var(--color-text-tertiary);
+    white-space: nowrap; cursor: pointer; transition: color 0.15s;
+  }
+  .ui-tab:hover, .ui-tab.is-active { color: var(--color-text-primary); }
+  .ui-tab.is-active::after {
+    content: ""; position: absolute; left: 6px; right: 6px; bottom: -1px;
+    height: 2px; background: var(--color-text-primary); border-radius: 1px;
+  }
+  .ui-tab__icon { font-size: 15px; color: var(--color-text-tertiary); flex-shrink: 0; }
+  .ui-tab:hover .ui-tab__icon, .ui-tab.is-active .ui-tab__icon { color: var(--color-text-primary); }
+  .ui-tab__label { overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  .ui-tabbar__add {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: var(--radius-sm, 4px);
+    color: var(--color-text-tertiary); font-size: 16px; cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .ui-tabbar__add:hover, .ui-tabbar__add.is-active { background: var(--color-bg-tint-hover); color: var(--color-text-primary); }
 
   /* rendered agent markdown */
   .md-preview pre { padding: 0.5rem 0.75rem; border-radius: 0.25rem; overflow-x: auto; margin: 1rem 0; background: var(--color-bg-tertiary); color: #1c1917; }

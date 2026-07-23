@@ -160,6 +160,33 @@ large sources into the REPL:
 .workspace/app-repl 'ctx.fns.patients.count({})'
 \`\`\`
 ` : ""}
+## Plugins
+
+Everything the workspace can do beyond the framework is a plugin: one folder
+whose functions are a library (\`ctx.fns.<namespace>.*\`), whose \`GET /<namespace>\`
+route is a tab, and whose \`SKILL.md\` — when it has one — is the instructions for
+using it. Read that file when you need the plugin, not before.
+
+| plugin | is | read |
+|---|---|---|
+${(ctx.state.plugins ?? []).map((p: any) => `| \`${p.namespace}\` | ${[p.tab && "tab", p.skill && "skill", ...p.provides.map((s: string) => `provides ${s}`), `${p.fns.length} fns`].filter(Boolean).join(", ")} | ${p.skill ?? p.description ?? "—"} |`).join("\n")}
+
+\`\`\`sh
+# what is mounted, with each plugin's functions and routes
+.workspace/repl 'ctx.fns.plugins.list({})'
+
+# what this machine has that the project has not asked for
+.workspace/repl 'await ctx.fns.plugins.catalog({})'
+
+# asking for one writes WORKDIR/workspace.json and mounts it — no restart
+.workspace/repl 'await ctx.fns.plugins.add({ name: "fhir-viewer" })'
+.workspace/repl 'await ctx.fns.plugins.add({ name: "billing", git: "https://github.com/acme/billing" })'
+.workspace/repl 'await ctx.fns.plugins.remove({ name: "billing" })'
+\`\`\`
+
+Propose a plugin before adding one — it is the user's project manifest you are
+editing, and a new tab appears in front of them.
+
 ## Driving the UI
 
 The workspace UI is open in a browser. The workspace can inject JS into that
@@ -189,31 +216,6 @@ Use this to show the user what you are talking about — open the file you just
 changed, switch to the processes tab after restarting a service — and to check
 that a change actually rendered.
 
-## Asking the user with a form
-
-When you need structured input, do not ask for it in prose — put a real form in
-front of the user. \`form.ask\` stores the form, opens it in the right pane, and
-the submitted values come back to you **as a chat message**, so just wait for
-them instead of polling.
-
-\`\`\`sh
-.workspace/repl <<'EOF'
-await ctx.fns.form.ask({
-  title: "Новый пациент",
-  fields: [
-    { name: "name", label: "Имя", required: true },
-    { name: "birthDate", label: "Дата рождения", type: "date" },
-    { name: "gender", label: "Пол", type: "select", options: ["male", "female", "other"] },
-    { name: "note", label: "Заметка", type: "textarea" },
-  ],
-})
-EOF
-\`\`\`
-
-Field types: \`text\` (default), \`textarea\`, \`number\`, \`date\`, \`select\` (with
-\`options\`), \`checkbox\`; \`value\` prefills, \`required\` validates. Answered forms
-stay readable at \`/form\`.
-
 ## Interacting with the UI by data-* attributes
 
 Every control the workspace renders carries \`data-form\`, \`data-action\` or
@@ -227,7 +229,7 @@ not break you.
 .workspace/repl 'await ctx.fns.page.click({ entity: "file", id: "src" })'
 \`\`\`
 
-Fill it in yourself only when demonstrating or testing — a form meant for the
+Fill a form in yourself only when demonstrating or testing — one meant for the
 user is theirs to submit.
 
 ## Rules

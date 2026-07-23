@@ -148,9 +148,11 @@ The client refetches the fragment; nothing about the payload travels.
 
 ## Plugins
 
-A directory with `atomic-workspace.json` (`{ namespace?, src? }`) anywhere in
-`PLUGIN_PATHS` (the project's `plugins/`, plus the skill directories) is mounted
-automatically and gets a tab. Inside, it is ordinary procs code — same file
+A directory with `atomic-workspace.json` (`{ namespace?, src?, label?, icon?,
+description? }`) is a plugin, and a plugin is a skill directory: the workspace's
+own live in `plugins/`, the project's in `WORKDIR/.claude/skills/`. It gets a tab
+if it answers `GET /<namespace>`, is a skill if it ships `SKILL.md`.
+`docs/plugins.md` is the guide. Inside, it is ordinary procs code — same file
 names, same `ctx.fns`. See `plugins/filemanager` for the smallest complete
 example and `plugins/aidbox` for one that is also a service provider
 (`$hook_service.aidbox.ts`).

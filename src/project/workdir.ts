@@ -1,4 +1,7 @@
 import { resolve } from "node:path";
+// project/roots calls this during bootstrap, before the registry exists, so the
+// fallback goes through a direct import rather than ctx.fns.
+import projectRoot from "./projectRoot";
 
 // The working directory the workspace operates on — what the file manager
 // lists and agents edit. WORKDIR wins; otherwise it is the project root.
@@ -6,7 +9,7 @@ import { resolve } from "node:path";
 export default function (ctx: Context, session: Session | null, _opts?: {}): string {
     const fromEnv = ctx.env.WORKDIR;
     if (fromEnv) return resolve(expandHome(fromEnv));
-    return ctx.fns.project.projectRoot({});
+    return projectRoot(ctx, session, {});
 }
 
 export function expandHome(path: string): string {

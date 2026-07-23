@@ -1,19 +1,15 @@
-// Remove a plugin's declaration from host package.json and remount. (Note:
-// the fns it added stay in the in-memory registry until restart — like any
-// deleted file; routes/types are rebuilt fresh and drop immediately.)
-import { resolve } from "node:path";
+// Drop a plugin from WORKDIR/workspace.json and remount. The clone under
+// .workspace/plugins stays where it is — removing is un-asking, not deleting, so
+// adding it back costs nothing. (The fns it registered live in the running
+// registry until a restart, like any deleted file; routes and types rebuild
+// immediately, so its tab goes at once.)
+export default async function (ctx: Context, _session: Session | null, opts: { name: string }) {
+    const file = `${ctx.fns.project.workdir({})}/workspace.json`;
+    const manifest = await Bun.file(file).json().catch(() => ({} as any));
+    if (!manifest.plugins?.[opts.name]) throw new Error(`"${opts.name}" is not declared in workspace.json`);
+    delete manifest.plugins[opts.name];
+    await Bun.write(file, JSON.stringify(manifest, null, 2) + "\n");
 
-export default async function (ctx: Context, _session: Session | null, opts: { from: string }) {
-    const from = opts.from;
-    const projectRoot = ctx.fns.project.projectRoot({});
-    const pkgPath = projectRoot + "/package.json";
-
-    const pkg = JSON.parse(await Bun.file(pkgPath).text());
-    const before = (pkg.proc?.plugins ?? []).length;
-    if (pkg.proc?.plugins) pkg.proc.plugins = pkg.proc.plugins.filter((p: any) => p.from !== from);
-    await Bun.write(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-
-    await ctx.genTypes({});
-    await ctx.fns.http.loadRoutes({});
-    return { removed: from, declarationsRemoved: before - (pkg.proc?.plugins?.length ?? 0) };
+    await ctx.fns.plugins.reload({});
+    return { removed: opts.name };
 }

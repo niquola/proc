@@ -7,10 +7,30 @@ import { relative, resolve } from "node:path";
 
 export default async function (ctx: Context, _session: Session | null, _opts: {}): Promise<void> {
     const { default: scan } = await import("./project/scan?t=" + Date.now());
+    const { default: roots } = await import("./project/roots?t=" + Date.now());
     const entries = await scan(ctx, null, {});
-    // Mounted plugin namespaces, kept on state so the layout (sync) can render
-    // them without rescanning.
-    ctx.state.plugins = [...new Set(entries.map(e => e.namespace).filter(Boolean))].sort();
+    // One record per mounted plugin, kept on state so the tab strip (sync), the
+    // manager and the agent's index all read the same thing. What the plugin IS
+    // comes from its files: fns make it a library, a GET /<namespace> route makes
+    // it a tab, a $hook_service makes it a provider — see $state_plugins.ts.
+    const mounted: any[] = await roots(ctx, null, {});
+    ctx.state.plugins = mounted.filter(r => r.namespace).sort((a, b) => a.namespace.localeCompare(b.namespace)).map(r => {
+        const mine = entries.filter((e: any) => e.namespace === r.namespace);
+        const routes = mine.filter((e: any) => e.kind === "route").map((e: any) => `${e.method} ${e.routePath}`);
+        return {
+            namespace: r.namespace,
+            label: r.label ?? r.namespace.slice(0, 1).toUpperCase() + r.namespace.slice(1),
+            icon: r.icon ?? "ph-squares-four",
+            description: r.description ?? "",
+            source: r.source ?? "core", from: r.from ?? null, dir: r.folder ?? r.dir, config: r.config ?? {},
+            optional: r.optional === true,
+            skill: r.skill ?? null,
+            tab: routes.includes(`GET /${r.namespace}`),
+            fns: mine.filter((e: any) => e.kind === "fn").map((e: any) => dottedName(e)),
+            routes,
+            provides: mine.filter((e: any) => e.kind === "hook" && e.hookName.startsWith("service.")).map((e: any) => e.hookName.slice("service.".length)),
+        };
+    });
 
     for (const entry of entries) {
         // $config/$hook/$migration/$cli → collected into ctx.state (shared with

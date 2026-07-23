@@ -12,7 +12,9 @@
 // so unknown keys inside a service are input for the hook and are kept as they
 // are — only unknown keys at the top level are a typo worth stopping for.
 // Missing file → just the dev server.
-const KEYS = ["env", "services"];
+// "plugins" belongs to the plugin manager (src/plugins/readDeclared.ts), not to
+// the supervisor — but it is the same file, so it is a key we know about.
+const KEYS = ["env", "services", "plugins"];
 const DEFAULT_SERVICES = { app: { cmd: "bun run dev", portEnv: "PORT" } };
 
 export default async function (ctx: Context, _session: Session | null, _opts?: {}): Promise<{ env: Record<string, string>; services: Record<string, any> }> {

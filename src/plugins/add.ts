@@ -1,46 +1,24 @@
-// Install + mount a plugin on the fly (no restart).
-//   ctx.fns.plugins.add({ from: "proc-auth" })                 // npm
-//   ctx.fns.plugins.add({ from: "github:acme/proc-billing" })  // git
-//   ctx.fns.plugins.add({ from: "file:./examples/todo" })      // local
-// `from` is exactly what `bun add` takes (Bun pulls the plugin's deps too).
-// Persists the entry in host package.json "proc.plugins" so boot re-mounts it.
-import { resolve, dirname } from "node:path";
-import { readFileSync } from "node:fs";
+// Ask for a plugin: write it into WORKDIR/workspace.json, fetch it if it comes
+// from a repo, and remount. Installing is a manifest edit — that is the whole
+// design, so the project carries its own tools and a fresh checkout comes up
+// with them.
+//
+//   plugins.add({ name: "fhir-viewer" })                                  // platform, by name
+//   plugins.add({ name: "billing", git: "https://github.com/acme/x" })    // external repo
+//   plugins.add({ name: "labs", path: "./tools/labs" })                   // shipped by the project
+//   plugins.add({ name: "aidbox", config: { license: "…" } })             // configure a mounted one
+export default async function (ctx: Context, _session: Session | null, opts: { name: string; git?: string; path?: string; config?: Record<string, any> }) {
+    if (ctx.fns.env.mode() === "prod") throw new Error("plugins.add is dev-only (it loads third-party code)");
+    const name = opts.name.trim();
+    if (!name) throw new Error("plugins.add: name is required");
 
-function pluginNamespace(from: string, projectRoot: string): string | null {
-    let f = from.startsWith("file:") ? from.slice(5) : from;
-    let dir: string;
-    if (f.startsWith(".") || f.startsWith("/")) dir = resolve(projectRoot, f);
-    else { try { dir = dirname(Bun.resolveSync(f + "/package.json", projectRoot)); } catch { return null; } }
-    try { return JSON.parse(readFileSync(dir + "/package.json", "utf8")).proc?.namespace ?? null; }
-    catch { return null; }
-}
+    const file = `${ctx.fns.project.workdir({})}/workspace.json`;
+    const manifest = await Bun.file(file).json().catch(() => ({} as any));
+    manifest.plugins ??= {};
+    manifest.plugins[name] = { ...manifest.plugins[name], ...opts.config, ...(opts.git ? { git: opts.git } : {}), ...(opts.path ? { path: opts.path } : {}) };
+    await Bun.write(file, JSON.stringify(manifest, null, 2) + "\n");
 
-export default async function (ctx: Context, _session: Session | null, opts: { from: string }) {
-    if (ctx.fns.env.mode() === "prod") throw new Error("plugins.add is dev-only (loads third-party code)");
-    const from = opts.from;
-    const projectRoot = ctx.fns.project.projectRoot({});
-    const pkgPath = projectRoot + "/package.json";
-
-    // 1. install (npm/git/local) — Bun resolves transitive deps into node_modules
-    await Bun.$`bun add ${from}`.cwd(projectRoot).quiet();
-
-    // 2. persist the declaration so boot re-mounts it
-    const pkg = JSON.parse(await Bun.file(pkgPath).text());
-    pkg.proc ??= {};
-    pkg.proc.plugins ??= [];
-    if (!pkg.proc.plugins.some((p: any) => p.from === from)) pkg.proc.plugins.push({ from });
-    await Bun.write(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-
-    // 3. remount the whole project (re-scan roots → register everything), then
-    //    lint (catches namespace collisions with core / other plugins) → types → routes
-    await ctx.loadFns({});
-    const lint = await ctx.fns.dev.lint({ silent: true });
-    if (!lint.ok) throw new Error(`plugin "${from}" rejected by lint:\n` + lint.errors.map((e: string) => "  ✗ " + e).join("\n"));
-    await ctx.genTypes({});
-    await ctx.fns.http.loadRoutes({});
-
-    const namespace = pluginNamespace(from, projectRoot);
-    const mounted = (await ctx.fns.plugins.list({})).find((p: any) => p.namespace === namespace);
-    return { installed: from, namespace, fns: mounted?.fns ?? 0, routes: mounted?.routes ?? 0 };
+    const mounted = (await ctx.fns.plugins.reload({})).find((p: any) => p.namespace === name);
+    if (!mounted) throw new Error(`"${name}" is declared but did not mount — no plugin by that name in the catalogue, and no git/path to fetch it from`);
+    return mounted;
 }

@@ -1,4 +1,5 @@
-// Resolve a module's config: defaults < package.json proc.prod.<module> < env.
+// Resolve a module's config: defaults < package.json proc.prod.<module> <
+// workspace.json plugins.<module> < env.
 // ENV ENTERS THROUGH CONFIG — a module reads ctx.fns.config.resolve, never
 // ctx.env directly. Each param's env var is schema.env or <MODULE>__<KEY>.
 // Coerced + validated; invalid config throws (so a bad $start fails loudly).
@@ -20,13 +21,18 @@ export default function (ctx: Context, _session: Session | null, opts: { module:
         fromPkg = pkg.proc?.prod?.[mod] ?? {};
     } catch { /* no package.json (e.g. prod bundle) → env-only */ }
 
+    // A plugin is configured where it is asked for: `"aidbox": { "license": … }`
+    // under "plugins" in WORKDIR/workspace.json. loadFns already read it onto the
+    // plugin's record, so this stays synchronous.
+    const fromWorkspace = ctx.state.plugins?.find(p => p.namespace === mod)?.config ?? {};
+
     const fromEnv: Record<string, any> = {};
     for (const [k, s] of Object.entries(schema)) {
         const name = s.env ?? `${envify(mod)}__${envify(k)}`;
         if (ctx.env[name] !== undefined) fromEnv[k] = ctx.env[name];
     }
 
-    const merged = { ...fromPkg, ...fromEnv }; // env wins over package.json
+    const merged = { ...fromPkg, ...fromWorkspace, ...fromEnv }; // env wins over the files
     const coerced = ctx.fns.config.coerce({ schema, config: merged });
     const errors = ctx.fns.config.validate({ schema, config: coerced });
     if (errors.length) throw new Error(`config "${mod}": ${errors.join("; ")}`);

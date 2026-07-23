@@ -51,6 +51,10 @@ export async function boot(opts?: { root?: string }): Promise<Context> {
     ctx.state.root = opts?.root ?? resolve(import.meta.dir, "..");
     const { default: loadFns } = await import("./loadFns");
     await loadFns(ctx, null, {});
+    // A project carries its plugins in workspace.json, not in its repo: clone
+    // the ones that are declared but absent, then mount what arrived.
+    const { fetched } = await ctx.fns.plugins.fetch({});
+    if (fetched.length) await loadFns(ctx, null, {});
     const lint = await ctx.fns.dev.lint({});
     if (!lint.ok) console.error(`[boot] ${lint.errors.length} namespace lint error(s) — fix before building (see [lint] above)`);
     await ctx.genTypes({});

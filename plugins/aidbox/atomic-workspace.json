@@ -1,4 +1,6 @@
 {
   "namespace": "aidbox",
-  "src": "src"
+  "src": "src",
+  "label": "Aidbox",
+  "icon": "ph-database"
 }

@@ -1,4 +1,6 @@
 {
   "namespace": "preview",
-  "src": "src"
+  "src": "src",
+  "label": "Preview",
+  "icon": "ph-eye"
 }

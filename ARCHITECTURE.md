@@ -44,8 +44,15 @@ the other.
 
 ## Plugins: a folder with a manifest
 
-A plugin is a directory with `atomic-workspace.json` (`{ namespace?, src? }`)
-and a `src/` tree of ordinary procs functions. `project/pluginPaths.ts` searches
+A plugin is a directory with `atomic-workspace.json` (`{ namespace?, src?, label?,
+icon?, description? }`) and a `src/` tree of ordinary procs functions — and it is
+a **skill directory**: the project keeps its own in `WORKDIR/.claude/skills/`,
+where the coding agent finds them as skills and the workspace as plugins. What a
+plugin is comes from its files: functions are a library, a `GET /<namespace>`
+route is a tab, a `SKILL.md` is a skill, a `$hook_service.<x>.ts` is a service
+provider. The workspace's own `plugins/` and the project's own skills are always
+on; the global skill dirs are a catalogue named in `workspace.json`, and an
+external is a git repo cloned into `.claude/skills/`. See `docs/plugins.md`. `project/pluginPaths.ts` searches
 the project's own `plugins/` plus every place skills live (`~/.claude/skills`,
 `~/.agent/skills`, `~/.codex/skills`, `<root>/.claude/skills`,
 `<root>/.agents/skills`), deduped by `realpath`; `PLUGIN_PATHS` overrides the
@@ -62,8 +69,8 @@ the UI grows by itself. The older declarative path (`proc.plugins` in
 
 Shipped plugins: `filemanager` (browse WORKDIR, markdown and syntax-highlighted
 code), `preview` (the app under development in a frame), `services` → namespace
-`processes` (what is running, its logs, restart/stop), `form` (ask the user
-something), `aidbox` (a *provider*, no UI — see below).
+`processes` (what is running, its logs, restart/stop), `aidbox` (a *provider*,
+no UI — see below).
 
 ## Services: declare what you need, not how to run it
 
@@ -200,16 +207,6 @@ Elements are addressed by the data-* convention borrowed from the template, neve
 by CSS selectors: `page.fill({form, values})` and `page.submit({form})` work on
 `[data-form]`, `page.click({action, entity, id})` on `[data-action]` scoped by
 `[data-entity][data-id]`. Restyling a plugin cannot break the agent.
-
-## Forms: the agent asks, the human answers, the answer returns
-
-`form.ask({title, fields})` stores a form, opens `/form/:id` in the right pane,
-and returns immediately. When the user submits, `POST /form/:id` records the
-answer, renders it back — and calls `agent.prompt` with the submitted values, so
-the answer lands in the ACP session as a chat message. The agent does not poll
-and does not parse prose: it asks with a real form and continues from structured
-data. This is the round trip that makes the left and right halves of the screen
-one system.
 
 ## Design rules that hold it together
 
