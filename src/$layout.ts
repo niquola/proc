@@ -188,7 +188,7 @@ ${opts.headExtra ?? ""}
 </aside>
 <section class="flex-1 min-w-0 flex flex-col" hx-boost="true" hx-target="#main" hx-swap="innerHTML">
   ${ctx.fns.ui.tabs({ path })}
-  <main id="main" class="flex-1 min-h-0 overflow-y-auto p-6">${opts.main}</main>
+  <main id="main" class="flex-1 min-h-0 overflow-y-auto bg-bg-content p-6">${opts.main}</main>
 </section>
 </body>
 </html>`;

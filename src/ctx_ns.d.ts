@@ -119,7 +119,11 @@ declare global {
             subscribe: Injected<typeof import("./events/subscribe").default>;
         };
         filemanager: {
+            crumbs: Injected<typeof import("../plugins/filemanager/src/crumbs").default>;
+            icon: Injected<typeof import("../plugins/filemanager/src/icon").default>;
             list: Injected<typeof import("../plugins/filemanager/src/list").default>;
+            listing: Injected<typeof import("../plugins/filemanager/src/listing").default>;
+            render: Injected<typeof import("../plugins/filemanager/src/render").default>;
         };
         form: {
             ask: Injected<typeof import("../plugins/form/src/ask").default>;
