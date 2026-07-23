@@ -35,9 +35,12 @@ export default async function (ctx: Context, _session: Session | null, opts: { p
             .replace(/^[\s\S]*?<code[^>]*>/, "").replace(/<\/code>\s*<\/pre>\s*$/, "");
     } catch { inner = esc(text); }
 
+    // `whitespace-pre` is the whole point: stripping shiki's <pre> took the
+    // preserved indentation with it. The gutter is sticky so the numbers stay
+    // put while a long line scrolls the box sideways.
     const lines = inner.split("\n").map((line, i) =>
-        `<div class="cv-row" id="L${i + 1}"><span class="cv-num">${i + 1}</span><span class="cv-code">${line || " "}</span></div>`).join("");
-    return `<div class="cv-grid">${lines}</div>`;
+        `<div class="flex" id="L${i + 1}"><span class="sticky left-0 w-12 shrink-0 select-none bg-bg-content pr-4 text-right text-text-muted">${i + 1}</span><span class="whitespace-pre">${line || " "}</span></div>`).join("");
+    return `<div class="overflow-x-auto py-2 font-mono text-xs leading-5">${lines}</div>`;
 }
 
 let marked: any;
