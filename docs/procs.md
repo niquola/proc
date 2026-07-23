@@ -180,3 +180,28 @@ server; `ctx.fns.http.dispatch` exercises routes in-process. `X.test.ts` tests
 | the workspace | `src/services` (supervisor), `src/agent` (ACP agent), `src/chat` (the chat column), `src/page` (driving the open tab) |
 | the tabs | `plugins/{filemanager,preview,processes,form,aidbox}` |
 | the design docs | `ARCHITECTURE.md`, `docs/agent.md`, `docs/services.md` |
+
+## Two doors, two locks
+
+The web UI and the REPL are two different surfaces on one port, and they are
+locked differently on purpose.
+
+`AUTH=on` puts a session in front of **everything the browser touches** — every
+page, `/events`, `/page/result`, and every POST that installs a plugin, restarts
+a service or drives the agent. Off is the default and means what it always did:
+the perimeter is the port. The workspace generates its own RS256 key
+(`.runtime/auth-key.json`, kept so a restart does not log you out), signs a
+token carrying **who you are**, and prints the magic link at boot:
+
+    [auth] http://localhost:51840/auth?token=eyJhbGciOi…
+
+That link, a pasted token at `/auth/login`, and a manager's token later all meet
+in one `auth.verify`; the session is the JWT in an HttpOnly cookie, so there is
+no store to keep. `AUTH_PUBLIC_KEY` is the seam: set it and tokens signed by a
+workspace manager are accepted too.
+
+`POST /repl` is not part of that. It runs arbitrary code in this process, so it
+is gated by the **run's secret** (`.runtime/repl-secret`, 0600) as well as by
+loopback — the loopback check alone stops meaning anything behind a proxy, which
+makes every request look local. The generated `.workspace/repl` carries the
+secret, which is why it is the way in and why it is rewritten on every start.

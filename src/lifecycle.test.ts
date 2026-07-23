@@ -7,5 +7,5 @@ import { testCtx } from "./$test";
 const ctx = await testCtx();
 
 test("lifecycle.order reads package.json proc.prod keys (http last)", async () => {
-    expect(await ctx.fns.lifecycle.order({})).toEqual(["log", "db", "migrate", "agent", "services", "http"]);
+    expect(await ctx.fns.lifecycle.order({})).toEqual(["log", "db", "migrate", "agent", "repl", "auth", "services", "http"]);
 });

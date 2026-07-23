@@ -49,6 +49,14 @@ declare global {
             sql: Injected<typeof import("../plugins/aidbox/src/sql").default>;
             writeCompose: Injected<typeof import("../plugins/aidbox/src/writeCompose").default>;
         };
+        auth: {
+            authenticate: Injected<typeof import("./auth/authenticate").default>;
+            cookie: Injected<typeof import("./auth/cookie").default>;
+            keys: Injected<typeof import("./auth/keys").default>;
+            screen: Injected<typeof import("./auth/screen").default>;
+            sign: Injected<typeof import("./auth/sign").default>;
+            verify: Injected<typeof import("./auth/verify").default>;
+        };
         chart: {
             data: Injected<typeof import("../plugins/chart/src/data").default>;
             load: Injected<typeof import("../plugins/chart/src/load").default>;
@@ -222,6 +230,7 @@ declare global {
         repl: {
             eval: Injected<typeof import("./repl/eval").default>;
             load: Injected<typeof import("./repl/load").default>;
+            secret: Injected<typeof import("./repl/secret").default>;
         };
         services: {
             captureLogs: Injected<typeof import("./services/captureLogs").default>;
@@ -293,9 +302,11 @@ declare global {
     interface CtxState {
         agent: import("./agent/$state_agent").agent;
         appRoots: import("./project/$state_appRoots").appRoots;
+        authKeys: import("./auth/$state_authKeys").authKeys;
         bootEnv: import("./services/$state_bootEnv").bootEnv;
         page: import("./page/$state_page").page;
         plugins: import("./plugins/$state_plugins").plugins;
+        replSecret: import("./repl/$state_replSecret").replSecret;
         services: import("./services/$state_services").services;
     }
 }

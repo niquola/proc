@@ -21,9 +21,13 @@ if (!(await portFile.exists())) {
     process.exit(1);
 }
 const port = (await portFile.text()).trim();
+// The run's secret, written beside the port. Missing means an older server, and
+// the request will come back 403 saying so.
+const secret = (await Bun.file(".runtime/repl-secret").text().catch(() => "")).trim();
 
 const res = await fetch(`http://localhost:${port}/repl`, {
     method: "POST",
+    headers: secret ? { "x-repl-secret": secret } : {},
     body: code,
 });
 

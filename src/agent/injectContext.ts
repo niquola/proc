@@ -78,7 +78,8 @@ services.map(s => s.name)
 EOF
 \`\`\`
 
-The plain form works too: \`curl -s localhost:${port}/repl --data-binary '<code>'\`.
+These helpers are the way in: the endpoint refuses a call without this run's
+secret, which they carry. They are rewritten on every start.
 
 ## Workspace functions (port ${port})
 
