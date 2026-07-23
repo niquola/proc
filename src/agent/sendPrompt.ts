@@ -8,7 +8,7 @@
 //
 // The turn is stored, not awaited: the caller returns immediately and the
 // answer arrives as session updates.
-export default function (ctx: Context, _session: Session | null, opts: { text: string }): void {
+export default function (ctx: Context, _session: Session | null, opts: { text: string; author?: { id: string; name: string } }): void {
     const agent = ctx.state.agent;
 
     agent.status = "running";
@@ -24,8 +24,13 @@ export default function (ctx: Context, _session: Session | null, opts: { text: s
             messageId: crypto.randomUUID(),
         },
         source: "user",
+        author: opts.author,
     });
 
-    agent.prompt = ctx.fns.agent.runPrompt({ text: opts.text });
+    // When more than one person is here the agent is told who spoke, because
+    // "do it the way I said" means different things from different people.
+    const others = ctx.fns.events.presence({}).length > 1;
+    const text = others && opts.author ? `[${opts.author.name}]: ${opts.text}` : opts.text;
+    agent.prompt = ctx.fns.agent.runPrompt({ text });
     agent.prompt.catch(() => undefined);
 }

@@ -181,6 +181,22 @@ server; `ctx.fns.http.dispatch` exercises routes in-process. `X.test.ts` tests
 | the tabs | `plugins/{filemanager,preview,processes,form,aidbox}` |
 | the design docs | `ARCHITECTURE.md`, `docs/agent.md`, `docs/services.md` |
 
+## More than one person
+
+A workspace can hold several people talking to one agent, and the chat says so
+in two places. **Who is here** is drawn in the bar above the transcript, counted
+per connection rather than per person: the event stream begins when a tab opens
+and ends when it closes, so three tabs are one participant and a reload does not
+make somebody leave. **Who said what** is on the message: a user row carries the
+author from the session, and the bubble shows the name only once the transcript
+has more than one voice in it — labelling every line in a conversation with one
+person is noise. When several are present the agent is told who spoke, because
+"do it the way I said" means different things from different people.
+
+With `AUTH=off` there is nobody to name: everyone is the same anonymous local
+person, the bar stays empty and bubbles stay bare. That is the truth rather than
+a limitation — the workspace has no way to tell two anonymous tabs apart.
+
 ## Two doors, two locks
 
 The web UI and the REPL are two different surfaces on one port, and they are

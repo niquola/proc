@@ -233,6 +233,11 @@ ${(ctx.state.plugins ?? []).filter(p => p.client).map(p => `<script src="/${p.na
       fetch("/page/result", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       return;
     }
+    if (e.detail?.type === "presence") {
+      const who = await fetch("/chat/who").then(r => r.text());
+      if (document.getElementById("chat-who")) htmx.swap("#chat-who", who, { swapStyle: "outerHTML" });
+      return;
+    }
     if (e.detail?.type !== "agent") return;
     const html = await fetch("/chat").then(r => r.text());
     if (!document.getElementById("chat")) return;
@@ -242,8 +247,9 @@ ${(ctx.state.plugins ?? []).filter(p => p.client).map(p => `<script src="/${p.na
 </head>
 <body class="bg-bg-primary text-text-primary text-sm h-screen flex">
 <aside class="w-96 shrink-0 border-r border-border-separator flex flex-col bg-bg-content">
-  <header class="h-12 shrink-0 border-b border-border-separator flex items-center px-4">
+  <header class="h-12 shrink-0 border-b border-border-separator flex items-center justify-between gap-3 px-4">
     <a class="font-semibold" href="/">procs</a>
+    ${ctx.fns.chat.who({})}
   </header>
   ${ctx.fns.chat.column({})}
 </aside>

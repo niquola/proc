@@ -12,6 +12,7 @@ export type Message = {
     title?: string;
     status?: string;     // tool status; "failed" with data.incomplete when a restart orphaned it
     data?: any;          // plan entries · tool meta
+    author?: { id: string; name: string };   // who sent it — only on user rows, and only when the workspace knows
     at: string;
     updatedAt: string;
 };

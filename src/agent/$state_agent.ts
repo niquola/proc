@@ -33,7 +33,7 @@ export type agent = {
 
     // prompting
     prompt?: Promise<void>;        // in-flight turn
-    queue: { id: string; text: string }[];
+    queue: { id: string; text: string; author?: { id: string; name: string } }[];
 
     // timing
     totals: { agentMs: number };

@@ -87,6 +87,7 @@ declare global {
             tools: Injected<typeof import("./chat/tools").default>;
             transcript: Injected<typeof import("./chat/transcript").default>;
             usage: Injected<typeof import("./chat/usage").default>;
+            who: Injected<typeof import("./chat/who").default>;
         };
         cli: {
             list: Injected<typeof import("./cli/list").default>;
@@ -126,6 +127,8 @@ declare global {
         };
         events: {
             emit: Injected<typeof import("./events/emit").default>;
+            join: Injected<typeof import("./events/join").default>;
+            presence: Injected<typeof import("./events/presence").default>;
             reload: Injected<typeof import("./events/reload").default>;
             subscribe: Injected<typeof import("./events/subscribe").default>;
         };
@@ -306,6 +309,7 @@ declare global {
         bootEnv: import("./services/$state_bootEnv").bootEnv;
         page: import("./page/$state_page").page;
         plugins: import("./plugins/$state_plugins").plugins;
+        presence: import("./events/$state_presence").presence;
         replSecret: import("./repl/$state_replSecret").replSecret;
         services: import("./services/$state_services").services;
     }

@@ -8,11 +8,13 @@
 // single pill. The db has no turn id — the walk below is the whole grouping.
 export default function (ctx: Context, _session: Session | null, opts?: { oob?: boolean }): string {
     const messages: types.agent.Message[] = ctx.fns.agent.messages({});
+    // Names appear only once the conversation has more than one voice in it.
+    const showAuthor = new Set(messages.filter(m => m.role === "user").map(m => m.author?.id ?? "")).size > 1;
     const blocks: string[] = [];
     for (let i = 0; i < messages.length; i += 1) {
         const message = messages[i]!;
         if (message.role !== "agent") {
-            blocks.push(ctx.fns.chat.bubble({ message }));
+            blocks.push(ctx.fns.chat.bubble({ message, showAuthor }));
             continue;
         }
         const group: types.agent.Message[] = [message];

@@ -22,7 +22,7 @@ export default function (
     _session: Session | null,
     // `source` is accepted so callers can stay explicit about who spoke; the
     // role itself comes from the update kind, which cannot disagree with itself.
-    opts: { update: any; source?: "agent" | "user" },
+    opts: { update: any; source?: "agent" | "user"; author?: { id: string; name: string } },
 ): types.agent.Message | null {
     const u = opts.update;
     const kind = u?.sessionUpdate;
@@ -60,7 +60,7 @@ export default function (
         const merge = last?.role === role && last.kind === chunk && last.messageId === (u.messageId ?? undefined);
         message = merge
             ? { ...last, text: last.text + text, updatedAt: now }
-            : { id: crypto.randomUUID(), seq: (last?.seq ?? 0) + 1, role, kind: chunk, text, messageId: u.messageId ?? undefined, at: now, updatedAt: now };
+            : { id: crypto.randomUUID(), seq: (last?.seq ?? 0) + 1, role, kind: chunk, text, messageId: u.messageId ?? undefined, author: opts.author, at: now, updatedAt: now };
     } else if (kind === "plan") {
         const last = readRow(ctx, "ORDER BY seq DESC LIMIT 1", []);
         const plan = last?.kind === "plan" ? last : undefined;
