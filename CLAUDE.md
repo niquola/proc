@@ -8,12 +8,62 @@ Extracted from `~/workspaces-template` and `~/hyper-code2` (core only: registry 
 
 ## Running
 
+Two different things start with the same file. **The framework alone**, on its
+own repo, is what the tests and `examples/` use:
+
 ```sh
 bun src/$main.ts            # or: bun start; port from env PORT (default 3000)
 bun script/repl.ts '<code>' # eval code inside the live server process
 ```
 
-The running server's port is written to `.runtime/port` — `script/repl.ts` finds the server through it.
+**A workspace over a project** is the real mode: the same process, pointed at
+somebody else's directory. `WORKDIR` is the whole difference — the file manager
+lists it, the supervisor reads its `workspace.json`, the agent runs in it, and
+the project's own plugins are found under its `.claude/skills`.
+
+```sh
+WORKDIR=~/my-project PORT=51840 bun src/$main.ts                    # open
+AUTH=on AUTH_USER=niquola WORKDIR=~/my-project PORT=51840 bun src/$main.ts   # behind a login
+```
+
+Booting brings up `workspace.json`'s services on free ports, mounts the plugins,
+starts the ACP agent over `WORKDIR`, writes `.workspace/repl` there, and — with
+`AUTH=on` — prints the magic link to sign in.
+
+| variable | default | what it does |
+|---|---|---|
+| `WORKDIR` | the repo itself | the project the workspace works on |
+| `PORT` | 3000 | the web UI (and `/repl`) |
+| `AUTH` | `off` | `on` puts the whole web UI behind a session |
+| `AUTH_USER` | `$USER` | who the magic link printed at boot is for |
+| `AUTH_DAYS` | 30 | how long a token this workspace signs is good for |
+| `AUTH_PUBLIC_KEY` | — | SPKI PEM; tokens signed by a manager are accepted too |
+| `AGENT` | `claude` | `claude` or `codex` |
+| `PLUGIN_PATHS` | `./plugins`, `.claude/skills`, `.agents/skills`, `~/.claude/skills`, … | where plugins are looked for |
+| `PREVIEW_URL` | the app service's port | what the preview tab frames |
+| `AIDBOX_BASE_URL` | — | an Aidbox somebody else runs; the provider then starts nothing |
+| `WATCH` | — | `1` reloads a file on save (the agent uses `dev.sync` instead) |
+| `NODE_ENV` | dev | `production` disables `/repl` and the dev machinery |
+| `DATABASE_URL` | `data/dev.sqlite` | the workspace's own db (the transcript) |
+| `LOG_LEVEL` / `LOG_FORMAT` | `info` / `pretty` | `json` for ndjson to stdout |
+
+The run leaves four files in `.runtime/`: `port` and `repl-secret` (how a client
+on this machine reaches the REPL), `auth-key.json` (the signing key, so a
+restart does not log anyone out) and `http.log`.
+
+**Stopping it needs `lsof`, not `pkill`.** `pkill -f "PORT=…"` matches nothing —
+the variable is in the environment, not in the process's argv — and Bun happily
+lets a second process bind a port that is already taken, after which requests
+are split between two workspaces at random and nothing behaves. Kill by port:
+
+```sh
+for p in $(lsof -ti tcp:51840); do kill $p; done
+```
+
+Two workspaces at once want two `PORT`s — and note that `.runtime/` belongs to
+the *workspace repo*, not to the project, so a second workspace started from the
+same directory overwrites the first one's `port` and `repl-secret`, and
+`script/repl.ts` then talks to the newer one.
 
 ## Core idea: unified signature + implicit injection
 

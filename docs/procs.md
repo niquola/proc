@@ -17,8 +17,18 @@ bun test                                    # co-located *.test.ts
 ```
 
 The port of a running server is in `.runtime/port`; `script/repl.ts` finds it
-there. The workspace we develop against runs on **51837** over
-`WORKDIR=~/workspace-template-test`.
+there.
+
+That command runs the framework on its own repo. A **workspace over a project**
+is the same process pointed elsewhere — `WORKDIR` is the whole difference:
+
+```sh
+WORKDIR=~/my-project PORT=51840 bun src/$main.ts
+AUTH=on AUTH_USER=niquola WORKDIR=~/my-project PORT=51840 bun src/$main.ts
+```
+
+Every option, what boot does, and why stopping it needs `lsof` rather than
+`pkill` are in [CLAUDE.md](../CLAUDE.md#running).
 
 ## The shape of every file
 

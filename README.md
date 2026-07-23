@@ -9,6 +9,7 @@ Think *Clojure-style REPL-driven development*, but for TypeScript on Bun, with e
 ```sh
 bun install
 bun src/$main.ts                                # start the server (PORT env, default 3000)
+WORKDIR=~/my-project PORT=51840 bun src/$main.ts   # …or as a workspace over a project
 bun script/repl.ts 'Object.keys(ctx.fns)'       # eval inside the live process
 ```
 
