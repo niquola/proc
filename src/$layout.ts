@@ -131,12 +131,14 @@ export default function (ctx: Context, session: Session | null, opts: { title?: 
   .ui-pane-header { flex-shrink: 0; border-bottom: 1px solid #e7e5e4; background: var(--color-bg-tertiary); display: flex; align-items: center; min-height: 52px; }
 
   /* the plugin tab strip (src/ui/tabs.ts) */
-  .ui-tabbar { display: flex; align-items: stretch; align-self: stretch; gap: 2px; height: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .ui-tabbar { display: flex; align-items: stretch; align-self: stretch; gap: 1px; height: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .ui-tabbar::-webkit-scrollbar { display: none; }
+  /* Eight tabs have to fit a half-window pane, so the strip is deliberately
+     quieter than the content it sits above: smaller type, tighter tracking. */
   .ui-tab {
-    display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px;
-    height: 100%; padding: 0 10px; position: relative;
-    font-size: 13px; font-weight: 500; color: var(--color-text-tertiary);
+    display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px;
+    height: 100%; padding: 0 9px; position: relative;
+    font-size: 12px; font-weight: 500; color: var(--color-text-tertiary);
     white-space: nowrap; cursor: pointer; transition: color 0.15s;
   }
   .ui-tab:hover, .ui-tab.is-active { color: var(--color-text-primary); }
@@ -144,9 +146,13 @@ export default function (ctx: Context, session: Session | null, opts: { title?: 
     content: ""; position: absolute; left: 6px; right: 6px; bottom: -1px;
     height: 2px; background: var(--color-text-primary); border-radius: 1px;
   }
-  .ui-tab__icon { font-size: 15px; color: var(--color-text-tertiary); flex-shrink: 0; }
+  .ui-tab__icon { font-size: 16px; color: var(--color-text-tertiary); flex-shrink: 0; }
   .ui-tab:hover .ui-tab__icon, .ui-tab.is-active .ui-tab__icon { color: var(--color-text-primary); }
-  .ui-tab__label { overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  /* Only the tab you are on says its name; the others are their icon and a
+     tooltip. Hiding it on hover instead would make the strip jump under the
+     pointer. */
+  .ui-tab__label { display: none; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  .ui-tab.is-active .ui-tab__label { display: inline; }
   .ui-tabbar__add {
     display: inline-flex; align-items: center; justify-content: center;
     width: 34px; height: 34px; border-radius: var(--radius-sm, 4px);

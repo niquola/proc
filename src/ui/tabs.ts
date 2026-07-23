@@ -1,7 +1,11 @@
-// The plugin tab strip, as wmlet draws it: an icon and a label per tab, the
-// active one in full black over a 2px underline, everything else muted until
-// hover. Rendered inside the layout, and again out of band after an htmx
-// partial swap so the active tab follows the URL.
+// The plugin tab strip: an icon per tab, and a label only on the one you are
+// on. Eight plugins with eight words do not fit a half-window pane, and a strip
+// that scrolls is a strip you cannot read at a glance — so the label goes where
+// it is actually needed, on the tab that says where you are, and the rest carry
+// their name in a tooltip.
+//
+// Rendered inside the layout, and again out of band after an htmx partial swap
+// so the active tab follows the URL.
 //
 // The tabs are plain links: hx-boost on the pane turns them into partial swaps,
 // so wmlet's tab client (click handlers, pinning) has nothing left to do here.
