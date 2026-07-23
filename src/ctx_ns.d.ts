@@ -49,6 +49,21 @@ declare global {
             sql: Injected<typeof import("../plugins/aidbox/src/sql").default>;
             writeCompose: Injected<typeof import("../plugins/aidbox/src/writeCompose").default>;
         };
+        app: {
+            patients: {
+                fhir: Injected<typeof import("../../../workspace-template-2/src/patients/fhir").default>;
+                name: Injected<typeof import("../../../workspace-template-2/src/patients/name").default>;
+                search: Injected<typeof import("../../../workspace-template-2/src/patients/search").default>;
+            };
+        };
+        chart: {
+            data: Injected<typeof import("../plugins/chart/src/data").default>;
+            load: Injected<typeof import("../plugins/chart/src/load").default>;
+            local: Injected<typeof import("../plugins/chart/src/local").default>;
+            preview: Injected<typeof import("../plugins/chart/src/preview").default>;
+            render: Injected<typeof import("../plugins/chart/src/render").default>;
+            theme: Injected<typeof import("../plugins/chart/src/theme").default>;
+        };
         chat: {
             answer: Injected<typeof import("./chat/answer").default>;
             bubble: Injected<typeof import("./chat/bubble").default>;

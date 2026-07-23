@@ -20,6 +20,7 @@ export type plugins = Array<{
     config: Record<string, any>;        // what workspace.json passed under this name
     skill: string | null;
     tab: boolean;
+    client: boolean;              // ships a client.js the layout loads
     fns: string[];
     routes: string[];
     provides: string[];

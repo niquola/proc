@@ -1,0 +1,9 @@
+{
+  "namespace": "chart",
+  "src": "src",
+  "label": "Charts",
+  "icon": "ph-chart-line",
+  "description": "Vega-Lite charts declared as $chart_<id>.json — a small SELECT over a materialized view, and a spec that says how to draw it.",
+  "optional": true,
+  "preview": { "files": "$chart_*.json", "fn": "preview" }
+}

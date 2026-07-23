@@ -12,6 +12,7 @@ the files it ships.
 | **skill** | it ships a `SKILL.md` | the coding agent |
 | **provider** | it has `$hook_service.<x>.ts` | `services` in `workspace.json` |
 | **viewer** | its manifest claims a file pattern | the file manager, instead of showing text |
+| **browser code** | it ships a `client.js` | the layout loads it, so its markup can call `hx-on--load` |
 
 A plugin can wear any subset. `filemanager` is a library and a tab; `aidbox` is
 a library, a tab and the provider of the `aidbox` service; a plugin that is only
@@ -36,6 +37,13 @@ gets no tab because it has no page to show.
 Seven keys, and six of them have defaults. The description falls back to the
 `description:` a `SKILL.md` already carries, so a plugin that is also a skill
 writes its sentence once.
+
+A plugin that needs behaviour in the browser adds `src/client.js` and the route
+that serves it (`$route_client.js_GET.ts`, a text import). The layout then loads
+it on every page, so an `hx-on--load` in the plugin's markup can count on it
+being there — which is how a fragment stays free of JavaScript.
+`plugins/chart` is the example: it fetches Vega the first time a chart is drawn
+rather than on every page load.
 
 `"optional": true` is how a plugin ships with the workspace without being in
 every project: it is discovered, listed in the catalogue, and mounted only once

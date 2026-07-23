@@ -82,8 +82,10 @@ code), `preview` (the app under development in a frame), `services` → namespac
 `processes` (what is running, its logs, restart/stop), `aidbox` (a *provider*,
 no UI — see below), plus two that are `"optional": true` — they ship with the
 workspace but wait to be named in `workspace.json`: `questionnaire` (the FHIR
-form library) and `viewdef` (SQL-on-FHIR ViewDefinitions, their columns and the
-rows their tables hold).
+form library), `viewdef` (SQL-on-FHIR ViewDefinitions, their columns and the rows
+their tables hold) and `chart` (Vega-Lite charts over those views). The three
+compose: a view flattens FHIR into a table, a chart draws a SELECT over it, and a
+questionnaire is what put the data there.
 
 The manager at `/plugins` is where this is visible and changeable: every mounted
 plugin with a badge per face, what the project declared but has not fetched, and

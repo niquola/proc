@@ -191,6 +191,7 @@ ${opts.headExtra ?? ""}
 <script src="/events/client.js" defer></script>
 <script src="/chat/client.js" defer></script>
 <script src="/page/client.js" defer></script>
+${(ctx.state.plugins ?? []).filter(p => p.client).map(p => `<script src="/${p.namespace}/client.js" defer></script>`).join("\n")}
 <script>
   // htmx fires htmx:load on the nodes it swaps in, and once on <body> at boot —
   // never on their descendants. Every hx-on--load in src/chat/ sits on such a

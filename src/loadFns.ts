@@ -26,6 +26,9 @@ export default async function (ctx: Context, _session: Session | null, _opts: {}
             optional: r.optional === true,
             skill: r.skill ?? null,
             tab: routes.includes(`GET /${r.namespace}`),
+            // A plugin may ship browser behaviour of its own; the layout loads it
+            // on every page, so an hx-on--load in its markup can count on it.
+            client: routes.includes(`GET /${r.namespace}/client.js`),
             fns: mine.filter((e: any) => e.kind === "fn").map((e: any) => dottedName(e)),
             routes,
             provides: mine.filter((e: any) => e.kind === "hook" && e.hookName.startsWith("service.")).map((e: any) => e.hookName.slice("service.".length)),
