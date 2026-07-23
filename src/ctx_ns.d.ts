@@ -170,6 +170,7 @@ declare global {
         };
         processes: {
             card: Injected<typeof import("../plugins/services/src/card").default>;
+            cards: Injected<typeof import("../plugins/services/src/cards").default>;
             escape: Injected<typeof import("../plugins/services/src/escape").default>;
             list: Injected<typeof import("../plugins/services/src/list").default>;
             logs: Injected<typeof import("../plugins/services/src/logs").default>;

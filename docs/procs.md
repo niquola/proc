@@ -130,7 +130,16 @@ menus). The rules, in order of how often they are broken:
    window.chat.compose(this)"`, `hx-on:click="window.chat.copy(this, {…})"` —
    never `querySelector`/`getElementById`/`data-*` to recover something the
    server already knew.
-3. **Address elements by `data-*` convention**, not CSS selectors:
+3. **Give every self-refreshing element an explicit `hx-target`.** htmx
+   attributes are inherited: the right pane sets `hx-boost="true"
+   hx-target="#main" hx-swap="innerHTML"`, so a child with its own `hx-get` and
+   no target of its own swaps **the whole pane**. This cost an evening: the
+   service list polled every five seconds and each tick replaced `#main` with
+   just the list, taking the log pane with it, and after leaving the tab the
+   timer kept firing at a target that no longer existed (`htmx:targetError`).
+   Refresh contents, not the container — `hx-target="this" hx-swap="innerHTML"`
+   keeps the element, its scroll position and its timer alive.
+4. **Address elements by `data-*` convention**, not CSS selectors:
    `data-form`, `data-action`, `data-entity` + `data-id`. `ctx.fns.page.*` drives
    the open tab this way, so a restyle cannot break the agent.
 
