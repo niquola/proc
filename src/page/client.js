@@ -168,6 +168,30 @@
         return { said: opts.text };
     }
 
+    // Wait for htmx to finish, rather than guessing with a sleep: a route that
+    // goes to the network takes as long as it takes, and the workspace reading
+    // the pane before the swap lands is how an agent ends up describing the
+    // previous page. If no request starts at all — a checkbox, a menu — there is
+    // nothing to wait for and we return at once.
+    function settle(act) {
+        return new Promise(resolve => {
+            let started = false, done = false;
+            const finish = () => {
+                if (done) return;
+                done = true;
+                removeEventListener("htmx:beforeRequest", onStart, true);
+                document.body.removeEventListener("htmx:afterSettle", finish);
+                resolve();
+            };
+            const onStart = () => { started = true; };
+            addEventListener("htmx:beforeRequest", onStart, true);
+            document.body.addEventListener("htmx:afterSettle", finish);
+            act();
+            setTimeout(() => { if (!started) finish(); }, 200);
+            setTimeout(finish, 8000);         // a route slower than this is broken, not slow
+        });
+    }
+
     // ── the verbs ────────────────────────────────────────────────────────────
     window.page = {
         state,
@@ -184,7 +208,7 @@
         async click(d) {
             const el = find(d);
             if (d.show !== false) { await moveTo(el, d); pulse(); }
-            el.click();
+            await settle(() => el.click());
             return { clicked: d, tag: el.tagName.toLowerCase(), href: el.getAttribute?.("href") ?? null };
         },
 
@@ -195,7 +219,7 @@
             const link = row.tagName === "A" ? row : row.querySelector("a[href]");
             if (!link) throw new Error("no link inside " + JSON.stringify(d));
             if (d.show !== false) { await moveTo(link, d); pulse(); }
-            link.click();
+            await settle(() => link.click());
             return { opened: link.getAttribute("href") };
         },
 
@@ -224,7 +248,7 @@
             if (!form) throw new Error("no <form> at " + sel("form", d.form));
             const button = form.querySelector("button[type=submit], [type=submit], button:not([type])");
             if (d.show !== false) { await moveTo(button ?? form, d); pulse(); }
-            if (button) button.click(); else form.requestSubmit();
+            await settle(() => { if (button) button.click(); else form.requestSubmit(); });
             return { submitted: d.form };
         },
 
@@ -233,7 +257,7 @@
         // drop all three.
         async go(d) {
             if (!window.htmx) { location.assign(d.url); return { opened: d.url }; }
-            htmx.ajax("GET", d.url, { target: "#main", swap: "innerHTML" });
+            await settle(() => htmx.ajax("GET", d.url, { target: "#main", swap: "innerHTML" }));
             history.pushState(null, "", d.url);
             return { opened: d.url };
         },

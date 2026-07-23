@@ -21,7 +21,11 @@ export default async function (ctx: Context, _session: Session | null, opts: { c
         ...(rows.length ? { data: { values: rows } } : {}),
     };
 
-    return `<div class="w-full" ${ctx.fns.ui.attr({ entity: "chart", id: opts.chart.id, role: "chart" })}
+    // The host is the drawing, not the identity: a list wraps it in the card that
+    // carries entity+id (and the link to open it), a single page carries them on
+    // the page itself. Marking it here too would report every chart twice and
+    // hand page.open an element with no link inside.
+    return `<div class="w-full" ${ctx.fns.ui.attr({ role: "chart" })}
   hx-on--load="window.charts.draw(this, ${esc(JSON.stringify(spec))})"></div>`;
 }
 

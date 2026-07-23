@@ -6,7 +6,7 @@
 // the event stream and this bridge stay alive. A full reload drops all three.
 export default async function (ctx: Context, _session: Session | null, opts: { url?: string } & types.page.Descriptor & { show?: boolean; settleMs?: number }) {
     const verb = opts.url ? "go" : "open";
-    const result = await ctx.fns.page.eval({ code: `return await window.page.${verb}(${JSON.stringify(opts)})` });
-    await Bun.sleep(opts.settleMs ?? 600);
+    const result = await ctx.fns.page.eval({ code: `return await window.page.${verb}(${JSON.stringify(opts)})`, timeoutMs: 20_000 });
+    await Bun.sleep(opts.settleMs ?? 120);   // the swap is already done — this is for paint
     return result;
 }

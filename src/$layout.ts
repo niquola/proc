@@ -207,9 +207,15 @@ ${(ctx.state.plugins ?? []).filter(p => p.client).map(p => `<script src="/${p.na
   // hx-swap-oob islands (queue, controls, send) land in the same pass.
   // The workspace injects JS by pushing {type:"eval"} down the event stream;
   // the tab runs it and posts the result back.
+  const ran = new Set();
   document.addEventListener("hyper-events", async e => {
     if (e.detail?.type === "eval") {
       const { id, code } = e.detail;
+      // The workspace sends an evaluation again if the first one goes unanswered
+      // (a tab that was still connecting would otherwise miss its only chance).
+      // Running it twice would click twice, so each id runs once.
+      if (ran.has(id)) return;
+      ran.add(id);
       // Every tab with the workspace open receives this, and the first answer
       // wins — so the tab the user is looking at gets a head start. Without it,
       // two open tabs make every injected call a coin flip: the workspace could

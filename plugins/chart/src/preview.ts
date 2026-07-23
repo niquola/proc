@@ -9,5 +9,5 @@ export default async function (ctx: Context, _session: Session | null, opts: { p
   <a class="shrink-0 text-text-link hover:underline" href="/chart/view?id=${encodeURIComponent(chart.id)}"
     hx-get="/chart/view?id=${encodeURIComponent(chart.id)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">open in Charts</a>
 </div>
-<div class="p-4">${await ctx.fns.chart.render({ chart, height: 260 })}</div>`;
+<div class="p-4" ${ctx.fns.ui.attr({ entity: "chart", id: chart.id })}>${await ctx.fns.chart.render({ chart, height: 260 })}</div>`;
 }

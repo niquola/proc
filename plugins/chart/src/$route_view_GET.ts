@@ -30,7 +30,7 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
   <a class="shrink-0 text-2xs text-text-link hover:underline" href="/chart" hx-get="/chart" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">← back</a>
 </div>
 
-<div class="mt-6">${await ctx.fns.chart.render({ chart, height: 320, rows })}</div>
+<div class="mt-6" ${ctx.fns.ui.attr({ entity: "chart", id: chart.id })}>${await ctx.fns.chart.render({ chart, height: 320, rows })}</div>
 
 ${ctx.fns.ui.box({
                 class: "mt-6",

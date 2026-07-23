@@ -9,7 +9,13 @@
 //
 // With `name` the service's own `env` is overlaid on a copy — that block belongs
 // to one child and is never merged into the shared environment.
+// The environment the workspace booted with, kept apart from the one it
+// computes. An in-process app is handed the shared env on ctx.env (it has no
+// child process to inherit it), which means a later resolve would find
+// AIDBOX_BASE_URL there and conclude somebody else runs Aidbox — and stop
+// offering to start, stop or restart the container the workspace itself owns.
 export default async function (ctx: Context, _session: Session | null, opts?: { name?: string }): Promise<Record<string, string>> {
+    ctx.state.bootEnv ??= { ...ctx.env };
     const specs = await ctx.fns.services.resolve({});
     const manifest = await ctx.fns.services.manifest({});
     const env: Record<string, string> = (ctx.state.serviceEnv ??= { WORKDIR: ctx.fns.project.workdir({}) });

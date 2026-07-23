@@ -49,13 +49,6 @@ declare global {
             sql: Injected<typeof import("../plugins/aidbox/src/sql").default>;
             writeCompose: Injected<typeof import("../plugins/aidbox/src/writeCompose").default>;
         };
-        app: {
-            patients: {
-                fhir: Injected<typeof import("../../../workspace-template-2/src/patients/fhir").default>;
-                name: Injected<typeof import("../../../workspace-template-2/src/patients/name").default>;
-                search: Injected<typeof import("../../../workspace-template-2/src/patients/search").default>;
-            };
-        };
         chart: {
             data: Injected<typeof import("../plugins/chart/src/data").default>;
             load: Injected<typeof import("../plugins/chart/src/load").default>;
@@ -300,6 +293,7 @@ declare global {
     interface CtxState {
         agent: import("./agent/$state_agent").agent;
         appRoots: import("./project/$state_appRoots").appRoots;
+        bootEnv: import("./services/$state_bootEnv").bootEnv;
         page: import("./page/$state_page").page;
         plugins: import("./plugins/$state_plugins").plugins;
         services: import("./services/$state_services").services;

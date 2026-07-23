@@ -11,7 +11,12 @@
 // a dependent give up at the default minute.
 export default async function (ctx: Context, _session: Session | null, opts: { name: string; spec: any }) {
     const { spec } = opts;
-    const url = spec.url ?? ctx.env.AIDBOX_BASE_URL;
+    // Only an address that was already there when the workspace booted means
+    // somebody else runs Aidbox. The one this workspace published for its own
+    // container is on ctx.env too — an in-process app is handed the shared
+    // environment there — and trusting it would make the workspace disown the
+    // container it started.
+    const url = spec.url ?? (ctx.state.bootEnv ?? ctx.env).AIDBOX_BASE_URL;
     if (url) return { url, urlEnv: spec.urlEnv ?? "AIDBOX_BASE_URL" };
 
     const { file } = await ctx.fns.aidbox.writeCompose({});
