@@ -49,13 +49,6 @@ declare global {
             sql: Injected<typeof import("../plugins/aidbox/src/sql").default>;
             writeCompose: Injected<typeof import("../plugins/aidbox/src/writeCompose").default>;
         };
-        app: {
-            patients: {
-                fhir: Injected<typeof import("../../../workspace-template-2/src/patients/fhir").default>;
-                name: Injected<typeof import("../../../workspace-template-2/src/patients/name").default>;
-                search: Injected<typeof import("../../../workspace-template-2/src/patients/search").default>;
-            };
-        };
         chat: {
             answer: Injected<typeof import("./chat/answer").default>;
             bubble: Injected<typeof import("./chat/bubble").default>;
@@ -170,9 +163,13 @@ declare global {
             fill: Injected<typeof import("./page/fill").default>;
             open: Injected<typeof import("./page/open").default>;
             openTab: Injected<typeof import("./page/openTab").default>;
+            point: Injected<typeof import("./page/point").default>;
+            say: Injected<typeof import("./page/say").default>;
+            state: Injected<typeof import("./page/state").default>;
             submit: Injected<typeof import("./page/submit").default>;
             tabs: Injected<typeof import("./page/tabs").default>;
             text: Injected<typeof import("./page/text").default>;
+            tour: Injected<typeof import("./page/tour").default>;
         };
         plugins: {
             add: Injected<typeof import("./plugins/add").default>;
@@ -237,6 +234,7 @@ declare global {
             waitReady: Injected<typeof import("./services/waitReady").default>;
         };
         ui: {
+            attr: Injected<typeof import("./ui/attr").default>;
             tabs: Injected<typeof import("./ui/tabs").default>;
         };
         viewdef: {
@@ -265,6 +263,9 @@ declare global {
         }
         namespace log {
             type LogRecord = import("./log/$type_LogRecord").LogRecord;
+        }
+        namespace page {
+            type Descriptor = import("./page/$type_Descriptor").Descriptor;
         }
         namespace services {
             type Line = import("./services/$type_Line").Line;

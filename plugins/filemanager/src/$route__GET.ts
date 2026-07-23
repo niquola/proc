@@ -48,7 +48,7 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
 <div class="mt-4 overflow-hidden rounded-md border border-border-subtle">
   <div class="flex items-center justify-between gap-3 border-b border-border-subtle bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">
     <span>${size(info.size)}</span>
-    <a class="text-text-link hover:underline" href="${raw}" target="_blank" rel="noreferrer">Raw</a>
+    <a ${ctx.fns.ui.attr({ action: "raw", id: rel })} class="text-text-link hover:underline" href="${raw}" target="_blank" rel="noreferrer">Raw</a>
   </div>
   ${body}
 </div>`,

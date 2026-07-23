@@ -29,7 +29,7 @@ export default function (ctx: Context, _session: Session | null, opts: { name?: 
     <span class="font-mono text-ui text-text-primary truncate">${ctx.fns.processes.escape({ text: service.name })}</span>
 ${chip(service.state)}
     <span class="flex-1"></span>
-    <button type="button" data-action="tail" title="Follow output" class="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-tint-hover hover:text-text-primary"
+    <button type="button" ${ctx.fns.ui.attr({ action: "tail", id: service.name })} title="Follow output" class="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md text-text-muted transition-colors hover:bg-bg-tint-hover hover:text-text-primary"
       hx-on:click="window.processes.tail(this)">
       <i class="ph ph-arrow-down text-base" aria-hidden="true"></i>
     </button>

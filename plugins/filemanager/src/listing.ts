@@ -18,15 +18,18 @@ export default async function (ctx: Context, _session: Session | null, opts: { d
     }))).filter(Boolean) as any[];
     entries.sort((a, b) => Number(b.dir) - Number(a.dir) || a.name.localeCompare(b.name));
 
+    const parent = relative(workdir, dirname(dir)) || ".";
     const up = here
-        ? `<tr class="border-t border-border-subtle first:border-t-0 hover:bg-bg-tertiary">
-      <td class="px-4 py-2" colspan="3">${cell(ctx, { name: "..", path: relative(workdir, dirname(dir)) || ".", dir: true })}</td></tr>`
+        ? `<tr ${ctx.fns.ui.attr({ entity: "dir", id: parent })} class="border-t border-border-subtle first:border-t-0 hover:bg-bg-tertiary">
+      <td class="px-4 py-2" colspan="3">${cell(ctx, { name: "..", path: parent, dir: true })}</td></tr>`
         : "";
 
-    const rows = entries.map(entry => `<tr class="border-t border-border-subtle first:border-t-0 hover:bg-bg-tertiary">
+    // The row carries the entity, not the link: the cells the agent reads
+    // (size, modified) are siblings of the name, and it follows the row's href.
+    const rows = entries.map(entry => `<tr ${ctx.fns.ui.attr({ entity: entry.dir ? "dir" : "file", id: entry.path })} class="border-t border-border-subtle first:border-t-0 hover:bg-bg-tertiary">
       <td class="px-4 py-2">${cell(ctx, entry)}</td>
-      <td class="px-4 py-2 text-right text-2xs tabular-nums text-text-tertiary">${entry.dir ? "" : size(entry.size)}</td>
-      <td class="px-4 py-2 text-right text-2xs whitespace-nowrap text-text-tertiary">${ago(entry.mtime)}</td>
+      <td ${ctx.fns.ui.attr({ role: "size" })} class="px-4 py-2 text-right text-2xs tabular-nums text-text-tertiary">${entry.dir ? "" : size(entry.size)}</td>
+      <td ${ctx.fns.ui.attr({ role: "modified" })} class="px-4 py-2 text-right text-2xs whitespace-nowrap text-text-tertiary">${ago(entry.mtime)}</td>
     </tr>`).join("");
 
     const readme = entries.find(entry => !entry.dir && README.test(entry.name));
@@ -47,7 +50,7 @@ ${readme ? await preview(ctx, readme) : ""}`,
 function cell(ctx: Context, entry: { name: string; path: string; dir: boolean }): string {
     const href = `/filemanager?path=${encodeURIComponent(entry.path)}`;
     return `<span class="flex items-center gap-2">${ctx.fns.filemanager.icon({ name: entry.name, dir: entry.dir })}
-    <a data-entity="file" data-id="${esc(entry.path)}" class="truncate text-text-primary hover:text-text-link hover:underline"
+    <a ${ctx.fns.ui.attr({ role: "name" })} class="truncate text-text-primary hover:text-text-link hover:underline"
       href="${href}" hx-get="${href}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">${esc(entry.name)}</a></span>`;
 }
 

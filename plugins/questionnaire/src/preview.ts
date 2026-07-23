@@ -14,8 +14,9 @@ export default async function (ctx: Context, _session: Session | null, opts: { p
 
     const id = questionnaire.id ?? name.slice("$qr_".length, -".json".length);
     const rendered = await ctx.fns.questionnaire.render({ questionnaire, readOnly: true, formName: `qr-${id}-file` });
-    return `<div class="flex items-baseline justify-between gap-4 border-b border-border-subtle bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">
-  <span>FHIR Questionnaire · ${count(questionnaire.item)} questions · read-only</span>
+    // No `page` here: this is a fragment inside the file manager's page.
+    return `<div class="flex items-baseline justify-between gap-4 border-b border-border-subtle bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary" ${ctx.fns.ui.attr({ entity: "questionnaire", id, status: questionnaire.status })}>
+  <span>FHIR Questionnaire · <span ${ctx.fns.ui.attr({ role: "questions" })}>${count(questionnaire.item)} questions</span> · read-only</span>
   <a class="shrink-0 text-text-link hover:underline" href="/questionnaire/preview?id=${encodeURIComponent(id)}"
     hx-get="/questionnaire/preview?id=${encodeURIComponent(id)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">open in Questionnaires</a>
 </div>

@@ -139,9 +139,11 @@ menus). The rules, in order of how often they are broken:
    timer kept firing at a target that no longer existed (`htmx:targetError`).
    Refresh contents, not the container — `hx-target="this" hx-swap="innerHTML"`
    keeps the element, its scroll position and its timer alive.
-4. **Address elements by `data-*` convention**, not CSS selectors:
-   `data-form`, `data-action`, `data-entity` + `data-id`. `ctx.fns.page.*` drives
-   the open tab this way, so a restyle cannot break the agent.
+4. **Address elements by the `data-*` convention**, not CSS selectors. Emit the
+   markers with `ctx.fns.ui.attr({ page, entity, id, status, role, form, action })`;
+   `ctx.fns.page.*` drives the open tab through exactly those, so a restyle
+   cannot break the agent and `page.state` can tell it what is on screen. A page
+   without markers is a page the agent cannot show anyone — `docs/ui.md`.
 
 Server pushes are one dumb bell: `ctx.fns.events.emit({ event: { type: "agent" } })`.
 The client refetches the fragment; nothing about the payload travels.

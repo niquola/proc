@@ -13,13 +13,13 @@ export default function (ctx: Context, _session: Session | null, opts: { path?: 
     const path = opts.path ?? "/";
     const tab = (p: (typeof plugins)[number]) => {
         const active = path === `/${p.namespace}` || path.startsWith(`/${p.namespace}/`);
-        return `<a class="ui-tab${active ? " is-active" : ""}" role="tab" aria-selected="${active}" href="/${esc(p.namespace)}"
+        return `<a ${ctx.fns.ui.attr({ entity: "tab", id: p.namespace, status: active ? "active" : "" })} class="ui-tab${active ? " is-active" : ""}" role="tab" aria-selected="${active}" href="/${esc(p.namespace)}"
       hx-get="/${esc(p.namespace)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true"
     ><i class="ph ${esc(p.icon)} ui-tab__icon" aria-hidden="true"></i><span class="ui-tab__label">${esc(p.label)}</span></a>`;
     };
     return `<nav id="tabs"${opts.oob ? ` hx-swap-oob="true"` : ""} class="h-12 shrink-0 flex items-center justify-between gap-4 px-3 bg-bg-tertiary border-b border-border-separator">
   <div class="ui-tabbar" role="tablist">${plugins.map(tab).join("")}</div>
-  <a class="ui-tabbar__add${path.startsWith("/plugins") ? " is-active" : ""}" href="/plugins" title="Plugins" aria-label="Plugins"
+  <a ${ctx.fns.ui.attr({ action: "plugins" })} class="ui-tabbar__add${path.startsWith("/plugins") ? " is-active" : ""}" href="/plugins" title="Plugins" aria-label="Plugins"
     hx-get="/plugins" hx-target="#main" hx-swap="innerHTML" hx-push-url="true"><i class="ph ph-puzzle-piece" aria-hidden="true"></i></a>
 </nav>`;
 }

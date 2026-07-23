@@ -31,28 +31,28 @@ export default function (
 
     const actions = external ? "" : [
         service.state === "running" || service.state === "starting"
-            ? `${actionButton(esc, service.name, "stop", "ph-stop", "Stop")}${actionButton(esc, service.name, "restart", "ph-arrows-clockwise", "Restart")}`
-            : actionButton(esc, service.name, "start", "ph-play", "Start"),
+            ? `${actionButton(ctx, service.name, "stop", "ph-stop", "Stop")}${actionButton(ctx, service.name, "restart", "ph-arrows-clockwise", "Restart")}`
+            : actionButton(ctx, service.name, "start", "ph-play", "Start"),
     ].join("");
 
     return `<div class="group flex cursor-pointer items-start gap-2 border-b border-l-2 border-border-subtle px-3 py-2 ${opts.selected ? "border-l-brand bg-bg-selected" : "border-l-transparent hover:bg-bg-tertiary"}"
-  data-entity="service" data-id="${esc(service.name)}"
+  ${ctx.fns.ui.attr({ entity: "service", id: service.name, status: service.state })}
   hx-get="/processes/${name}/logs" hx-target="#service-log" hx-swap="outerHTML">
   <div class="min-w-0 flex-1">
     <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
       <span class="h-1.5 w-1.5 shrink-0 rounded-full ${dotClass(service)}"></span>
       <span class="truncate text-ui text-text-primary">${esc(service.name)}</span>
-      <span class="rounded border px-1.5 py-px text-3xs font-medium ${chipClass(service)}">${esc(stateLabel(service))}</span>
+      <span ${ctx.fns.ui.attr({ role: "state" })} class="rounded border px-1.5 py-px text-3xs font-medium ${chipClass(service)}">${esc(stateLabel(service))}</span>
 ${service.startedAt && (service.state === "running" || service.state === "starting")
-            ? `      <span class="text-2xs tabular-nums text-text-tertiary">${esc(formatUptime(Date.now() - service.startedAt))}</span>\n` : ""
+            ? `      <span ${ctx.fns.ui.attr({ role: "uptime" })} class="text-2xs tabular-nums text-text-tertiary">${esc(formatUptime(Date.now() - service.startedAt))}</span>\n` : ""
         }${address
-            ? `      <a class="text-2xs tabular-nums text-text-link hover:underline" href="${esc(address)}" target="_blank" hx-on:click="event.stopPropagation()">${esc(addressLabel)} ↗</a>\n` : ""
+            ? `      <a ${ctx.fns.ui.attr({ role: "port" })} class="text-2xs tabular-nums text-text-link hover:underline" href="${esc(address)}" target="_blank" hx-on:click="event.stopPropagation()">${esc(addressLabel)} ↗</a>\n` : ""
         }${service.restarts > 0
-            ? `      <span class="text-2xs text-state-warning-fg" title="restarts">↻ ${service.restarts}</span>\n` : ""
+            ? `      <span ${ctx.fns.ui.attr({ role: "restarts" })} class="text-2xs text-state-warning-fg" title="restarts">↻ ${service.restarts}</span>\n` : ""
         }${service.state === "crashed" && service.exitCode != null
             ? `      <span class="text-2xs text-state-danger-fg">exit ${esc(service.exitCode)}</span>\n` : ""
         }    </div>
-${cmd ? `    <div class="mt-1 truncate font-mono text-2xs text-text-muted" title="${esc(cmd)}">${esc(cmd)}</div>\n` : ""
+${cmd ? `    <div ${ctx.fns.ui.attr({ role: "command" })} class="mt-1 truncate font-mono text-2xs text-text-muted" title="${esc(cmd)}">${esc(cmd)}</div>\n` : ""
         }${down.length > 0 ? `    <div class="mt-1 text-2xs text-state-warning-fg">${down.map(need => `needs ${esc(need)} · down`).join(" · ")}</div>\n` : ""
         }${service.error ? `    <div class="mt-1 text-2xs text-state-danger-fg">${esc(service.error)}</div>\n` : ""
         }${peek.length > 0
@@ -64,8 +64,9 @@ ${actions ? `  <div class="flex shrink-0 items-center gap-0.5 opacity-70 transit
 
 // The three buttons are identical but for their verb, so they share one shape:
 // POST, swap nothing, and keep the click off the card underneath.
-function actionButton(esc: (text: unknown) => string, service: string, action: string, icon: string, label: string): string {
-    return `<button type="button" data-action="${esc(action)}"
+function actionButton(ctx: Context, service: string, action: string, icon: string, label: string): string {
+    const esc = (text: unknown) => ctx.fns.processes.escape({ text });
+    return `<button type="button" ${ctx.fns.ui.attr({ action, id: service })}
       class="inline-flex size-6 items-center justify-center rounded text-text-tertiary hover:bg-bg-quaternary hover:text-text-primary"
       title="${esc(label)}" aria-label="${esc(`${label} ${service}`)}"
       hx-post="/processes/${encodeURIComponent(service)}/${esc(action)}" hx-swap="none" hx-on:click="event.stopPropagation()">

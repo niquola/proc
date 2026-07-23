@@ -63,6 +63,18 @@ button. Opening a `$viewdef_*.json` in the file manager shows the same thing
 instead of the JSON. Prefer opening the page over pasting rows into the chat:
 `page.open({ url: "/viewdef/view?id=patient_demographics" })`.
 
+## Driving it
+
+```sh
+.workspace/repl 'await ctx.fns.page.open({ url: "/viewdef/view?id=patient_demographics" })'
+.workspace/repl 'await ctx.fns.page.say({ text: "four columns out of Patient", entity: "column", id: "gender" })'
+.workspace/repl 'await ctx.fns.page.click({ action: "materialize", entity: "viewdef", id: "patient_demographics" })'
+```
+
+Markers: pages `views` / `view`; entity `viewdef` + id on each list row, entity
+`column` + name on each column row; roles `name`, `resource`, `columns`,
+`table`, `path`, `type`; action `materialize`. See `docs/ui.md`.
+
 ## Rules
 
 - A view is a **projection, not a copy** — put the columns a question needs, not

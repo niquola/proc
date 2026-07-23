@@ -155,6 +155,23 @@ export default function (ctx: Context, session: Session | null, opts: { title?: 
   }
   .ui-tabbar__add:hover, .ui-tabbar__add.is-active { background: var(--color-bg-tint-hover); color: var(--color-text-primary); }
 
+  /* the workspace pointing at things in the page (src/page/client.js) */
+  #page-pointer, #page-ring, #page-caption {
+    position: fixed; z-index: 900; pointer-events: none;
+    transition: opacity .25s ease, left .5s cubic-bezier(.22,.61,.36,1), top .5s cubic-bezier(.22,.61,.36,1);
+  }
+  #page-pointer { filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+  #page-ring {
+    border: 2px solid var(--color-brand); border-radius: 6px;
+    background: var(--color-accent-soft);
+    transition: opacity .25s ease, left .5s cubic-bezier(.22,.61,.36,1), top .5s cubic-bezier(.22,.61,.36,1), width .5s, height .5s;
+  }
+  #page-caption {
+    max-width: 22rem; padding: 8px 12px; border-radius: 8px;
+    background: var(--color-text-primary); color: #fff;
+    font-size: 13px; line-height: 1.35; box-shadow: 0 6px 20px -8px rgba(0,0,0,.5);
+  }
+
   /* rendered agent markdown */
   .md-preview pre { padding: 0.5rem 0.75rem; border-radius: 0.25rem; overflow-x: auto; margin: 1rem 0; background: var(--color-bg-tertiary); color: #1c1917; }
   .md-preview div + pre { margin-top: 0; }
@@ -173,6 +190,7 @@ export default function (ctx: Context, session: Session | null, opts: { title?: 
 ${opts.headExtra ?? ""}
 <script src="/events/client.js" defer></script>
 <script src="/chat/client.js" defer></script>
+<script src="/page/client.js" defer></script>
 <script>
   // htmx fires htmx:load on the nodes it swaps in, and once on <body> at boot —
   // never on their descendants. Every hx-on--load in src/chat/ sits on such a
@@ -191,6 +209,13 @@ ${opts.headExtra ?? ""}
   document.addEventListener("hyper-events", async e => {
     if (e.detail?.type === "eval") {
       const { id, code } = e.detail;
+      // Every tab with the workspace open receives this, and the first answer
+      // wins — so the tab the user is looking at gets a head start. Without it,
+      // two open tabs make every injected call a coin flip: the workspace could
+      // navigate one tab and read the other. A tab left over from an older
+      // version of the page keeps quiet entirely rather than answering wrongly.
+      if (!window.page) return;
+      if (document.hidden) await new Promise(r => setTimeout(r, 400));
       let body;
       try {
         const value = await new Function("return (async () => { " + code + " })()")();

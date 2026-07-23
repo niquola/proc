@@ -76,6 +76,24 @@ validation errors come back attached to the fields that caused them. Pass
 `response` to prefill. The markup carries `data-form="<formName>"`, so
 `page.fill`/`page.submit` can drive it.
 
+## Showing it to the user
+
+The tab is drivable, so show rather than describe. The search page keeps its
+whole state in the URL, and every result is addressable:
+
+```sh
+.workspace/repl 'await ctx.fns.page.open({ url: "/questionnaire?q=depression" })'
+.workspace/repl 'await ctx.fns.page.state({})'                       # what is on screen now
+.workspace/repl 'await ctx.fns.page.say({ text: "11 questions, LOINC-coded", entity: "questionnaire", id: "44249-1" })'
+.workspace/repl 'await ctx.fns.page.open({ entity: "questionnaire", id: "44249-1" })'
+```
+
+Markers this plugin emits: pages `questionnaires` / `questionnaire` / `compare`;
+entity `questionnaire` + the form's id on every project form and every search
+hit; actions `search`, `compare`, `generate`; forms `qr-search` (fields `q`,
+`by`), `qr-compare`, `qr-generate` (field `slug`). A rendered form is
+`data-form="<formName>"` and its items fill by `linkId`. See `docs/ui.md`.
+
 ## Adding a form to a project
 
 Once the user has chosen, the generator writes it — never hand-write the routes:

@@ -212,19 +212,39 @@ one. The runtime is the user's own tab. `page.eval` pushes
 `{type:"eval", id, code}` down the SSE stream; the layout's handler runs it as an
 async function body and posts the result back to `POST /page/result`, where a
 pending promise resolves. That is the whole bridge — a few dozen lines, no CDP,
-no headless Chrome.
+no headless Chrome. Only the tab the user is looking at answers: a hidden one
+waits, and a tab left from an older version of the page keeps quiet.
 
-Navigation is partial by design. `toResponse` returns just `main` (plus the tab
-strip with `hx-swap-oob`) when the request carries `HX-Request`; tabs are
+On that wire sits `window.page` (`src/page/client.js`) — one resolver, one
+catalogue and the verbs — with a thin server function per verb in `src/page/`.
+Nothing addresses the screen by CSS selector. Everything goes through the
+`data-*` markers `ctx.fns.ui.attr` emits: `page` on the root, `entity`+`id` on a
+row, `role` on a cell, `action` on a control, `form` on a form. A restyle cannot
+break the agent, and an unmarked element is simply invisible to it.
+
+`page.state` returns what is on the screen in exactly that vocabulary — the
+entities, the actions, the forms with their fields — built by the same resolver
+the verbs use, so a name it reports is a name that works and a name it omits is
+one that will not. Look, then act; do not guess selectors. The verbs are `open`
+(a URL, or an entity whose own link is followed), `openTab`, `point`, `say`,
+`click`, `fill`, `submit`, `text` and `tour`. Each acting verb flies a pointer to
+its target and lights it up first, so the user sees what the workspace pressed
+instead of the page changing by itself.
+
+Navigation stays partial by design. `toResponse` returns just `main` (plus the
+tab strip with `hx-swap-oob`) when the request carries `HX-Request`; tabs are
 `hx-get` + `hx-target="#main"` + `hx-push-url`; `page.open` injects
-`htmx.ajax(...)` and `history.pushState`. The URL changes for real, while the
+`htmx.ajax(...)` and `history.pushState`. The URL changes for real while the
 chat, the SSE stream and this bridge stay alive — a full reload would kill all
-three, which is why it is banned in the agent's rules.
+three, which is why it is banned in the agent's rules. It also means a plugin
+page can keep its whole state in its URL (`/questionnaire?q=…`,
+`/viewdef/view?id=…`), and putting the user in front of something is then one
+call rather than a sequence of clicks.
 
-Elements are addressed by the data-* convention borrowed from the template, never
-by CSS selectors: `page.fill({form, values})` and `page.submit({form})` work on
-`[data-form]`, `page.click({action, entity, id})` on `[data-action]` scoped by
-`[data-entity][data-id]`. Restyling a plugin cannot break the agent.
+`page.tour` runs a list of steps against that page — open, point, say, click,
+fill, submit, wait — with narration as a first-class step, so the workspace can
+walk someone through a plugin instead of describing it. `docs/ui.md` is the
+guide.
 
 ## Design rules that hold it together
 

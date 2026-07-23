@@ -130,6 +130,15 @@ manifest, where it came from, and the config the manifest passed it. Below,
 what the project declared but has not got, and the catalogue with an **Add** on
 each row.
 
+## Make it drivable
+
+A tab is not finished when it renders. Mark it with `ctx.fns.ui.attr` — one
+`page` on the root, `entity`+`id` on every row, `role` on the cells worth
+reading, `action` on every control, `form` on every form — and the workspace can
+show it to the user: point at a row, explain it, press the button, run a tour.
+Unmarked markup is invisible to that. The convention and the verbs are in
+[ui.md](./ui.md); `plugins/viewdef` is the shortest example that has all of it.
+
 ## What the agent gets
 
 The block written into `WORKDIR/CLAUDE.md` lists every mounted plugin, what it

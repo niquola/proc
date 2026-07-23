@@ -13,13 +13,14 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
 
     return {
         title: name,
-        main: `<div class="flex items-baseline justify-between gap-4">
+        main: `<section ${ctx.fns.ui.attr({ page: "view" })}>
+<div class="flex items-baseline justify-between gap-4">
   <div>
     <h1 class="text-lg font-semibold">${esc(name)}</h1>
     <div class="mt-0.5 text-2xs text-text-tertiary">${esc(viewdef.resource ?? "?")} → <span class="font-mono">sof.${esc(name)}</span>${file ? ` · <a class="font-mono text-text-link hover:underline" href="/filemanager?path=${encodeURIComponent(file)}" hx-get="/filemanager?path=${encodeURIComponent(file)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">${esc(file)}</a>` : ""}</div>
   </div>
   <div class="flex shrink-0 items-center gap-3">
-    <button class="rounded-md border border-border-input px-2 py-1 text-2xs hover:bg-bg-tertiary" data-action="materialize" data-entity="viewdef" data-id="${esc(id)}"
+    <button class="rounded-md border border-border-input px-2 py-1 text-2xs hover:bg-bg-tertiary" ${ctx.fns.ui.attr({ action: "materialize", entity: "viewdef", id })}
       hx-post="/viewdef/materialize" hx-vals='{"id":${JSON.stringify(id)}}' hx-target="#main" hx-swap="innerHTML">Materialize</button>
     <a class="text-2xs text-text-link hover:underline" href="/viewdef" hx-get="/viewdef" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">← back</a>
   </div>
@@ -28,10 +29,10 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
 <div class="mt-6 overflow-hidden rounded-md border border-border-subtle">
   <div class="bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">${columns.length} columns</div>
   <table class="w-full text-2xs">
-    <tbody>${columns.map(c => `<tr class="border-t border-border-subtle">
-      <td class="w-56 px-4 py-1.5 font-mono">${esc(c.name)}</td>
-      <td class="px-4 py-1.5 font-mono text-text-muted">${esc(c.path)}</td>
-      <td class="w-32 px-4 py-1.5 text-text-tertiary">${esc(c.type ?? "")}</td>
+    <tbody>${columns.map(c => `<tr class="border-t border-border-subtle" ${ctx.fns.ui.attr({ entity: "column", id: c.name })}>
+      <td class="w-56 px-4 py-1.5 font-mono" ${ctx.fns.ui.attr({ role: "name" })}>${esc(c.name)}</td>
+      <td class="px-4 py-1.5 font-mono text-text-muted" ${ctx.fns.ui.attr({ role: "path" })}>${esc(c.path)}</td>
+      <td class="w-32 px-4 py-1.5 text-text-tertiary" ${ctx.fns.ui.attr({ role: "type" })}>${esc(c.type ?? "")}</td>
     </tr>`).join("")}</tbody>
   </table>
 </div>
@@ -41,7 +42,8 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
 <details class="mt-6 overflow-hidden rounded-md border border-border-subtle">
   <summary class="cursor-pointer bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">ViewDefinition</summary>
   <pre class="overflow-x-auto border-t border-border-subtle p-4 font-mono text-2xs">${esc(JSON.stringify(viewdef, null, 2))}</pre>
-</details>`,
+</details>
+</section>`,
     };
 }
 

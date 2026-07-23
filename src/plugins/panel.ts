@@ -8,16 +8,17 @@ export default async function (ctx: Context, _session: Session | null, opts: { m
     const missing = Object.entries(declared).filter(([name]) => !mounted.some(p => p.namespace === name));
     const catalog = await ctx.fns.plugins.catalog({});
 
-    const badge = (text: string, tone = "neutral") =>
-        `<span class="rounded-sm border border-state-${tone}-border bg-state-${tone}-bg px-1.5 py-0.5 text-3xs text-state-${tone}-fg">${esc(text)}</span>`;
+    // attrs is spliced into the tag so a badge can carry its own role marker.
+    const badge = (text: string, tone = "neutral", attrs = "") =>
+        `<span ${attrs ? `${attrs} ` : ""}class="rounded-sm border border-state-${tone}-border bg-state-${tone}-bg px-1.5 py-0.5 text-3xs text-state-${tone}-fg">${esc(text)}</span>`;
 
-    const plugin = (p: (typeof mounted)[number]) => `<div class="flex items-start gap-3 border-t border-border-subtle px-4 py-3">
+    const plugin = (p: (typeof mounted)[number]) => `<div ${ctx.fns.ui.attr({ entity: "plugin", id: p.namespace, status: "on" })} class="flex items-start gap-3 border-t border-border-subtle px-4 py-3">
   <i class="ph ${esc(p.icon)} mt-0.5 text-base text-text-tertiary" aria-hidden="true"></i>
   <div class="min-w-0 flex-1">
     <div class="flex items-center gap-2">
-      ${p.tab ? `<a class="font-medium text-text-link hover:underline" href="/${esc(p.namespace)}">${esc(p.label)}</a>` : `<span class="font-medium">${esc(p.label)}</span>`}
-      <span class="font-mono text-2xs text-text-tertiary">${esc(p.namespace)}</span>
-      ${badge(p.source)}
+      ${p.tab ? `<a ${ctx.fns.ui.attr({ role: "label" })} class="font-medium text-text-link hover:underline" href="/${esc(p.namespace)}">${esc(p.label)}</a>` : `<span ${ctx.fns.ui.attr({ role: "label" })} class="font-medium">${esc(p.label)}</span>`}
+      <span ${ctx.fns.ui.attr({ role: "namespace" })} class="font-mono text-2xs text-text-tertiary">${esc(p.namespace)}</span>
+      ${badge(p.source, "neutral", ctx.fns.ui.attr({ role: "source" }))}
       ${p.tab ? badge("tab", "info") : ""}
       ${p.skill ? badge("skill", "success") : ""}
       ${p.provides.map(s => badge(`service:${s}`, "warning")).join("")}
@@ -25,7 +26,7 @@ export default async function (ctx: Context, _session: Session | null, opts: { m
       ${p.fns.length ? badge(`${p.fns.length} fns`) : ""}
     </div>
     ${p.description ? `<div class="mt-0.5 text-2xs text-text-muted">${esc(p.description)}</div>` : ""}
-    <div class="mt-0.5 truncate font-mono text-3xs text-text-placeholder" title="${esc(p.dir)}">${esc(p.dir)}</div>
+    <div ${ctx.fns.ui.attr({ role: "dir" })} class="mt-0.5 truncate font-mono text-3xs text-text-placeholder" title="${esc(p.dir)}">${esc(p.dir)}</div>
     ${Object.keys(p.config).length ? `<div class="mt-1 font-mono text-3xs text-text-tertiary">${esc(JSON.stringify(p.config))}</div>` : ""}
   </div>
   ${!p.optional ? `<span class="shrink-0 text-2xs text-text-placeholder">always on</span>`
@@ -34,11 +35,11 @@ export default async function (ctx: Context, _session: Session | null, opts: { m
       hx-post="/plugins/remove" hx-vals='{"name":${JSON.stringify(p.namespace)}}'>Turn off</button>`}
 </div>`;
 
-    const gap = ([name, config]: [string, Record<string, any>]) => `<div class="flex items-center gap-3 border-t border-border-subtle px-4 py-3">
+    const gap = ([name, config]: [string, Record<string, any>]) => `<div ${ctx.fns.ui.attr({ entity: "plugin", id: name, status: "declared" })} class="flex items-center gap-3 border-t border-border-subtle px-4 py-3">
   <i class="ph ph-warning-circle text-base text-state-warning-fg" aria-hidden="true"></i>
   <div class="min-w-0 flex-1">
-    <div class="font-medium">${esc(name)}</div>
-    <div class="font-mono text-3xs text-text-tertiary">${esc(config.git ?? config.path ?? "no git or path — and nothing by that name in the catalogue")}</div>
+    <div ${ctx.fns.ui.attr({ role: "namespace" })} class="font-medium">${esc(name)}</div>
+    <div ${ctx.fns.ui.attr({ role: "source" })} class="font-mono text-3xs text-text-tertiary">${esc(config.git ?? config.path ?? "no git or path — and nothing by that name in the catalogue")}</div>
   </div>
   ${config.git ? `<button class="shrink-0 rounded-md border border-border-input px-2 py-1 text-2xs hover:bg-bg-tertiary" data-action="fetch" data-entity="plugin" data-id="${esc(name)}"
     hx-post="/plugins/fetch" hx-vals='{"name":${JSON.stringify(name)}}'>Fetch</button>` : ""}
@@ -47,12 +48,12 @@ export default async function (ctx: Context, _session: Session | null, opts: { m
     hx-post="/plugins/remove" hx-vals='{"name":${JSON.stringify(name)}}'>Turn off</button>
 </div>`;
 
-    const available = (p: (typeof catalog)[number]) => `<div class="flex items-center gap-3 border-t border-border-subtle px-4 py-3">
+    const available = (p: (typeof catalog)[number]) => `<div ${ctx.fns.ui.attr({ entity: "plugin", id: p.namespace, status: "off" })} class="flex items-center gap-3 border-t border-border-subtle px-4 py-3">
   <i class="ph ${esc(p.icon)} text-base text-text-tertiary" aria-hidden="true"></i>
   <div class="min-w-0 flex-1">
-    <div class="flex items-center gap-2"><span class="font-medium">${esc(p.label)}</span><span class="font-mono text-2xs text-text-tertiary">${esc(p.namespace)}</span>${p.skill ? badge("skill", "success") : ""}</div>
+    <div class="flex items-center gap-2"><span ${ctx.fns.ui.attr({ role: "label" })} class="font-medium">${esc(p.label)}</span><span ${ctx.fns.ui.attr({ role: "namespace" })} class="font-mono text-2xs text-text-tertiary">${esc(p.namespace)}</span>${p.skill ? badge("skill", "success") : ""}</div>
     ${p.description ? `<div class="mt-0.5 text-2xs text-text-muted">${esc(p.description)}</div>` : ""}
-    <div class="mt-0.5 truncate font-mono text-3xs text-text-placeholder">${esc(p.dir)}</div>
+    <div ${ctx.fns.ui.attr({ role: "dir" })} class="mt-0.5 truncate font-mono text-3xs text-text-placeholder">${esc(p.dir)}</div>
   </div>
   <button class="shrink-0 rounded-md border border-border-input px-2 py-1 text-2xs hover:border-brand hover:bg-accent-soft hover:text-brand" data-action="turn-on" data-entity="plugin" data-id="${esc(p.namespace)}"
     hx-post="/plugins/add" hx-vals='{"name":${JSON.stringify(p.namespace)}}'>Turn on</button>
@@ -63,7 +64,8 @@ export default async function (ctx: Context, _session: Session | null, opts: { m
   ${rows || `<div class="border-t border-border-subtle px-4 py-3 text-2xs text-text-tertiary">${esc(empty)}</div>`}
 </div>`;
 
-    return `<h1 class="text-lg font-semibold">Plugins</h1>
+    return `<section ${ctx.fns.ui.attr({ page: "plugins" })}>
+<h1 class="text-lg font-semibold">Plugins</h1>
 <p class="mt-1 text-2xs text-text-tertiary">A plugin is a folder: its functions are a library, a <span class="font-mono">GET /namespace</span> route makes it a tab, a <span class="font-mono">SKILL.md</span> makes it a skill for the agent. The workspace's own are always on; the rest are named in <span class="font-mono">workspace.json</span>.</p>
 ${opts.error ? `<div class="mt-4 rounded-md border border-state-danger-border bg-state-danger-bg px-4 py-2 text-ui text-state-danger-fg">${esc(opts.error)}</div>` : ""}
 ${opts.message ? `<div class="mt-4 rounded-md border border-state-success-border bg-state-success-bg px-4 py-2 text-ui text-state-success-fg">${esc(opts.message)}</div>` : ""}
@@ -76,7 +78,8 @@ ${box(`${catalog.length} available — off`, catalog.map(available).join(""), "e
   <input name="git" data-field="git" placeholder="https://github.com/acme/plugin (leave empty for a platform plugin)"
     class="flex-1 rounded-md border border-border-input px-3 py-1.5 text-ui outline-none focus:border-border-focus">
   <button class="rounded-md bg-brand px-3 py-1.5 text-ui text-text-inverse hover:bg-brand-hover" data-action="add">Add</button>
-</form>`;
+</form>
+</section>`;
 }
 
 function esc(s: any): string {

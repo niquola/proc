@@ -16,7 +16,9 @@ export default function (ctx: Context, _session: Session | null, opts: { path: s
         return crumb(part, acc, i === parts.length - 1);
     });
 
-    return `<div class="flex items-center gap-1.5 text-base">
+    // The crumbs open every page of this plugin (listing, file, not-found), so
+    // the page marker lives here — exactly one per rendered page.
+    return `<div ${ctx.fns.ui.attr({ page: "files" })} class="flex items-center gap-1.5 text-base">
 ${crumb(root, ".", parts.length === 0)}
 ${trail.map(part => `<span class="text-text-tertiary">/</span>${part}`).join("")}
 </div>`;

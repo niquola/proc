@@ -12,7 +12,7 @@ export default async function (ctx: Context, _session: Session | null, opts: { p
     const columns = ctx.fns.viewdef.columns({ viewdef });
     const rows = await ctx.fns.viewdef.rows({ name, limit: 10 });
 
-    return `<div class="flex items-baseline justify-between gap-4 border-b border-border-subtle bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">
+    return `<div class="flex items-baseline justify-between gap-4 border-b border-border-subtle bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary" ${ctx.fns.ui.attr({ entity: "viewdef", id })}>
   <span>ViewDefinition · ${esc(viewdef.resource ?? "?")} → <span class="font-mono">sof.${esc(name)}</span> · ${columns.length} columns</span>
   <a class="shrink-0 text-text-link hover:underline" href="/viewdef/view?id=${encodeURIComponent(id)}"
     hx-get="/viewdef/view?id=${encodeURIComponent(id)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">open in Views</a>

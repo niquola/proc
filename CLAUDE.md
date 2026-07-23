@@ -471,3 +471,21 @@ Rules:
 ## Bun
 
 The runtime is Bun (not Node): `bun <file>`, `bun test`, `bun install`, `Bun.serve`, `Bun.file`, `bun:sqlite`, `Bun.sql`, `Bun.$`. `.env` is loaded automatically. WebSocket is built in. Don't use express/vite/jest/pg/ws — Bun has it all built in.
+
+## Driving the open page (src/page/, src/ui/attr.ts)
+
+The workspace has no browser: the user's tab is the runtime, and `page.eval`
+injects code into it over the SSE stream. On that wire sits `window.page`
+(`src/page/client.js`) with one resolver and the verbs; `src/page/*` are thin
+server wrappers.
+
+Everything is addressed by the `data-*` markers `ctx.fns.ui.attr({ page, entity,
+id, status, role, form, action })` emits — never by a CSS selector. `page.state`
+reports the right pane in that same vocabulary (entities, actions, forms and
+their fields), built by the resolver the verbs use, so what it reports is what
+will work. Verbs: `open` (a URL, or an entity whose link is followed), `openTab`,
+`point`, `say`, `click`, `fill`, `submit`, `text`, `tour`. Each acting verb moves
+a pointer to its target and lights it up so the user sees what happened;
+`show:false` turns that off. `page.tour` runs steps with narration as a
+first-class step. **A plugin page must carry its state in its URL and mark its
+markup** — otherwise the agent cannot show it to anyone. Full guide: `docs/ui.md`.

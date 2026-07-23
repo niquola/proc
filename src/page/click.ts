@@ -1,18 +1,11 @@
-// Click by data-* convention, never by a raw CSS selector:
-//   page.click({ action: "submit" })
-//   page.click({ action: "delete", entity: "Patient", id: "pt-1" })   // scoped to a row
-//   page.click({ entity: "Patient", id: "pt-1" })                     // the row itself
-export default async function (ctx: Context, _session: Session | null, opts: { action?: string; entity?: string; id?: string }) {
-    const arg = JSON.stringify(opts);
-    const hit = await ctx.fns.page.eval({
-        code: `const { action, entity, id } = ${arg};
-               const scope = entity ? document.querySelector('[data-entity=' + JSON.stringify(entity) + ']' + (id ? '[data-id=' + JSON.stringify(id) + ']' : '')) : document;
-               if (!scope) return null;
-               const el = action ? scope.querySelector('[data-action=' + JSON.stringify(action) + ']') : scope;
-               if (!el) return null;
-               el.click();
-               return el.getAttribute('data-action') ?? el.getAttribute('data-id') ?? el.tagName.toLowerCase()`,
-    });
-    if (!hit) throw new Error(`nothing to click: ${arg}`);
-    return { clicked: hit };
+// Click by the data-* convention, never by a CSS selector — a restyle must not
+// break this. The pointer flies to the control and the control flashes first,
+// so a person watching sees what was pressed; pass `show: false` to skip that.
+//   page.click({ action: "materialize" })
+//   page.click({ action: "turn-off", entity: "plugin", id: "questionnaire" })
+//   page.click({ entity: "questionnaire", id: "phq9" })   // the row itself
+export default async function (ctx: Context, _session: Session | null, opts: types.page.Descriptor & { show?: boolean; delay?: number; settleMs?: number }) {
+    const hit = await ctx.fns.page.eval({ code: `return await window.page.click(${JSON.stringify(opts)})` });
+    await Bun.sleep(opts.settleMs ?? 500);   // htmx swaps after the click; give the pane time to be the new one
+    return hit;
 }

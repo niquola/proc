@@ -5,13 +5,13 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
     const url = new URL(opts.req.url);
     const file = url.searchParams.get("file") ?? undefined;
     const id = url.searchParams.get("id") ?? undefined;
-    if (!file && !id) return { title: "questionnaire", status: 400, main: `<div class="text-state-danger-fg">Give a <span class="font-mono">?file=</span> or an <span class="font-mono">?id=</span></div>` };
+    if (!file && !id) return { title: "questionnaire", status: 400, main: `<div class="text-state-danger-fg" ${ctx.fns.ui.attr({ page: "questionnaire" })}>Give a <span class="font-mono">?file=</span> or an <span class="font-mono">?id=</span></div>` };
 
     let questionnaire: any;
     try {
         questionnaire = await ctx.fns.questionnaire.load({ file, id });
     } catch (error: any) {
-        return { title: "questionnaire", status: 404, main: `<div class="rounded-md border border-state-danger-border bg-state-danger-bg px-4 py-2 text-ui text-state-danger-fg">${esc(error?.message ?? error)}</div>` };
+        return { title: "questionnaire", status: 404, main: `<div class="rounded-md border border-state-danger-border bg-state-danger-bg px-4 py-2 text-ui text-state-danger-fg" ${ctx.fns.ui.attr({ page: "questionnaire" })}>${esc(error?.message ?? error)}</div>` };
     }
 
     const rendered = await ctx.fns.questionnaire.render({ questionnaire, readOnly: true, formName: `qr-${id ?? file}` });
@@ -22,11 +22,11 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
       hx-get="/filemanager?path=${encodeURIComponent(file ?? mine!.file)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">${esc(file ?? mine!.file)}</a>` : `library · <a class="text-text-link hover:underline" href="https://form-builder.aidbox.app/fhir/Questionnaire/${encodeURIComponent(id!)}" target="_blank" rel="noreferrer">form-builder.aidbox.app</a>`;
     // A library candidate can be taken into the project; one that is already a
     // file has nowhere to go.
-    const add = file || mine ? "" : `<form class="mt-4 flex items-center gap-2" data-form="qr-generate" hx-post="/questionnaire/generate" hx-target="#main" hx-swap="innerHTML">
+    const add = file || mine ? "" : `<form class="mt-4 flex items-center gap-2" ${ctx.fns.ui.attr({ form: "qr-generate" })} hx-post="/questionnaire/generate" hx-target="#main" hx-swap="innerHTML">
   <input type="hidden" name="id" value="${esc(id)}">
   <input name="slug" data-field="slug" value="${esc(slug(questionnaire, id!))}" placeholder="slug"
     class="w-64 rounded-md border border-border-input px-3 py-1.5 text-ui outline-none focus:border-border-focus">
-  <button class="rounded-md bg-brand px-3 py-1.5 text-ui text-text-inverse hover:bg-brand-hover" data-action="generate">Add to project</button>
+  <button class="rounded-md bg-brand px-3 py-1.5 text-ui text-text-inverse hover:bg-brand-hover" ${ctx.fns.ui.attr({ action: "generate", id })}>Add to project</button>
   <span class="text-2xs text-text-tertiary">writes <span class="font-mono">$qr_&lt;slug&gt;.json</span> and its GET/POST routes</span>
 </form>`;
 
@@ -35,17 +35,19 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
     // say — where it came from, and that looking at it changes nothing.
     return {
         title: questionnaire.title ?? questionnaire.id ?? "questionnaire",
-        main: `<div class="flex items-baseline justify-between gap-4 text-2xs text-text-tertiary">
-  <div>${source}${questionnaire.publisher ? ` · ${esc(questionnaire.publisher)}` : ""}${questionnaire.status ? ` · ${esc(questionnaire.status)}` : ""} · read-only, nothing is saved</div>
+        main: `<section ${ctx.fns.ui.attr({ page: "questionnaire", entity: "questionnaire", id: id ?? file, status: questionnaire.status })}>
+<div class="flex items-baseline justify-between gap-4 text-2xs text-text-tertiary">
+  <div>${source}${questionnaire.publisher ? ` · <span ${ctx.fns.ui.attr({ role: "publisher" })}>${esc(questionnaire.publisher)}</span>` : ""}${questionnaire.status ? ` · <span ${ctx.fns.ui.attr({ role: "status" })}>${esc(questionnaire.status)}</span>` : ""} · read-only, nothing is saved</div>
   <a class="shrink-0 text-text-link hover:underline" href="/questionnaire" hx-get="/questionnaire" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">← back</a>
 </div>
 ${add}
 <div class="mt-6">${rendered.main}</div>
 
 <details class="mt-8 overflow-hidden rounded-md border border-border-subtle">
-  <summary class="cursor-pointer bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">JSON — ${count(questionnaire.item)} questions</summary>
+  <summary class="cursor-pointer bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">JSON — <span ${ctx.fns.ui.attr({ role: "questions" })}>${count(questionnaire.item)} questions</span></summary>
   <pre class="overflow-x-auto border-t border-border-subtle p-4 font-mono text-2xs">${esc(JSON.stringify(questionnaire, null, 2))}</pre>
-</details>`,
+</details>
+</section>`,
     };
 }
 

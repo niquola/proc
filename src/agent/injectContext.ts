@@ -189,54 +189,77 @@ editing, and a new tab appears in front of them.
 
 ## Driving the UI
 
-The workspace UI is open in a browser. The workspace can inject JS into that
-page over its event stream and read the result back — there is no browser here
-to automate, the user's own tab is the runtime.
+The workspace UI is open in a browser and you can drive it. There is no browser
+here to automate — the user's own tab is the runtime, and the workspace injects
+JS into it over the event stream and reads the answer back.
+
+**Ask what is on screen before acting.** \`page.state\` reports the right pane in
+the vocabulary you may use: the entities, the actions, the forms and their
+fields. It is built by the same resolver the verbs use, so a name it reports is
+one that will work, and a name it does not report will not.
 
 \`\`\`sh
-# which plugin tabs exist and which one is showing
-.workspace/repl 'await ctx.fns.page.tabs({})'
+.workspace/repl 'await ctx.fns.page.state({})'
+\`\`\`
 
-# switch the right pane (URL changes, chat and streams stay alive)
-.workspace/repl 'await ctx.fns.page.openTab({ plugin: "processes" })'
-.workspace/repl 'await ctx.fns.page.open({ url: "/filemanager?path=src" })'
+Everything is addressed by the \`data-*\` markers a page emits — \`page\`, \`entity\`,
+\`id\`, \`status\`, \`role\`, \`form\`, \`action\` — never by a CSS selector, so a restyle
+cannot break you.
 
-# read what the user is looking at
+\`\`\`sh
+# navigate. A plugin page keeps its state in its URL, so this is usually enough
+.workspace/repl 'await ctx.fns.page.open({ url: "/questionnaire?q=depression" })'
+.workspace/repl 'await ctx.fns.page.open({ entity: "questionnaire", id: "44249-1" })'
+.workspace/repl 'await ctx.fns.page.openTab({ plugin: "viewdef" })'
+
+# point at something and explain it — the pointer flies there and a caption lands
+.workspace/repl 'await ctx.fns.page.point({ action: "materialize" })'
+.workspace/repl 'await ctx.fns.page.say({ text: "this rebuilds the table", action: "materialize" })'
+
+# act
+.workspace/repl 'await ctx.fns.page.click({ action: "materialize", entity: "viewdef", id: "patient_demographics" })'
+.workspace/repl 'await ctx.fns.page.fill({ form: "qr-search", values: { q: "tobacco" } })'
+.workspace/repl 'await ctx.fns.page.submit({ form: "qr-search" })'
+
+# read
 .workspace/repl 'await ctx.fns.page.text({ selector: "#main" })'
-
-# interact
-.workspace/repl 'await ctx.fns.page.click({ selector: "a[href=\\"/preview\\"]" })'
-.workspace/repl 'await ctx.fns.page.fill({ selector: "input[name=url]", value: "http://localhost:3000" })'
-
-# anything else: the code is the body of an async function in the tab
-.workspace/repl 'await ctx.fns.page.eval({ code: "return document.title" })'
 \`\`\`
 
-Use this to show the user what you are talking about — open the file you just
-changed, switch to the processes tab after restarting a service — and to check
-that a change actually rendered.
+Every acting verb moves the pointer to its target and lights it up first, so the
+user sees what you pressed instead of the page changing on its own. \`show:false\`
+turns that off when it would be noise.
 
-## Interacting with the UI by data-* attributes
+### Showing, not telling
 
-Every control the workspace renders carries \`data-form\`, \`data-action\` or
-\`data-entity\`+\`data-id\` — address those, never CSS selectors, so a restyle does
-not break you.
+When you have found something, put the user in front of it rather than
+describing it. A tour is a list of steps against the page they are looking at,
+and narration is a step like any other:
 
 \`\`\`sh
-.workspace/repl 'await ctx.fns.page.fill({ form: "1", values: { name: "Иван", gender: "male" } })'
-.workspace/repl 'await ctx.fns.page.submit({ form: "1" })'
-.workspace/repl 'await ctx.fns.page.click({ action: "restart", entity: "service", id: "app" })'
-.workspace/repl 'await ctx.fns.page.click({ entity: "file", id: "src" })'
+.workspace/repl <<'EOF'
+await ctx.fns.page.tour({ steps: [
+  { open: "/viewdef", say: "These are the SQL-on-FHIR views this project defines" },
+  { say: "This one flattens Patient into four columns", entity: "viewdef", id: "patient_demographics" },
+  { click: { entity: "viewdef", id: "patient_demographics" }, say: "Its columns, and the rows the table holds" },
+  { say: "Press this after editing the file", action: "materialize" },
+]})
+EOF
 \`\`\`
 
-Fill a form in yourself only when demonstrating or testing — one meant for the
-user is theirs to submit.
+A step may act and narrate at once; the sentence lands on what the act produced.
+\`wait\` holds, \`point\` moves the pointer without pressing anything. A failing step
+stops the tour and says which one.
 
 ## Rules
 
 - Check runtime state through the REPL instead of guessing from source.
 - Navigate with \`page.open\` / \`page.openTab\`, never \`location.reload\` — a full
   reload drops the chat, the event stream and this bridge.
+- Prefer a URL over a click: \`/questionnaire?q=…\`, \`/viewdef/view?id=…\`,
+  \`/filemanager?path=…\` put the user in front of something in one call, and the
+  page they end up on is one they can reload or share.
+- Ask \`page.state\` rather than guessing an id out of the source; fill a form
+  yourself only when demonstrating — one meant for the user is theirs to submit.
 - After editing a file the app already loaded, sync it (\`dev.sync\`) rather than
   restarting the process; restart only when the entry point or a \`$start\` changed.
 - Never edit this block — the workspace rewrites it on every agent start.

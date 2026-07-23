@@ -5,7 +5,7 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
     const service = ctx.fns.services.status({}).find((s: any) => s.name === "aidbox");
     const base = service?.url ?? (await ctx.fns.services.env({})).AIDBOX_BASE_URL;
     if (!base) {
-        return { title: "aidbox", main: `<div class="text-text-placeholder">No aidbox service — add <code>"aidbox": {}</code> to workspace.json.</div>` };
+        return { title: "aidbox", main: `<div ${ctx.fns.ui.attr({ page: "aidbox" })} class="text-text-placeholder">No aidbox service — add <code>"aidbox": {}</code> to workspace.json.</div>` };
     }
 
     const path = new URL(opts.req.url).searchParams.get("path") ?? "/";
@@ -13,7 +13,7 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
 
     return {
         title: "aidbox",
-        main: `<iframe id="aidbox-frame" src="${esc(url)}" class="block h-[calc(100vh-3rem)] w-[calc(100%+3rem)] -m-6 bg-bg-content"></iframe>`,
+        main: `<iframe id="aidbox-frame" ${ctx.fns.ui.attr({ page: "aidbox" })} src="${esc(url)}" class="block h-[calc(100vh-3rem)] w-[calc(100%+3rem)] -m-6 bg-bg-content"></iframe>`,
     };
 }
 
