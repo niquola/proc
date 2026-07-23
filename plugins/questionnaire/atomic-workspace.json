@@ -4,5 +4,9 @@
   "label": "Questionnaires",
   "icon": "ph-list-checks",
   "description": "Search the public FHIR Questionnaire library, preview and compare candidates, and generate the chosen form into the project as $qr_<slug>.json with its routes.",
-  "optional": true
+  "optional": true,
+  "preview": {
+    "files": "$qr_*.json",
+    "fn": "preview"
+  }
 }

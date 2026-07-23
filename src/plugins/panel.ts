@@ -21,6 +21,7 @@ export default async function (ctx: Context, _session: Session | null, opts: { m
       ${p.tab ? badge("tab", "info") : ""}
       ${p.skill ? badge("skill", "success") : ""}
       ${p.provides.map(s => badge(`service:${s}`, "warning")).join("")}
+      ${p.preview ? badge(`previews ${p.preview.files}`, "info") : ""}
       ${p.fns.length ? badge(`${p.fns.length} fns`) : ""}
     </div>
     ${p.description ? `<div class="mt-0.5 text-2xs text-text-muted">${esc(p.description)}</div>` : ""}

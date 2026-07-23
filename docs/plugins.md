@@ -11,6 +11,7 @@ the files it ships.
 | **devtool** | it answers `GET /<namespace>` | the human, as a tab in the right pane |
 | **skill** | it ships a `SKILL.md` | the coding agent |
 | **provider** | it has `$hook_service.<x>.ts` | `services` in `workspace.json` |
+| **viewer** | its manifest claims a file pattern | the file manager, instead of showing text |
 
 A plugin can wear any subset. `filemanager` is a library and a tab; `aidbox` is
 a library, a tab and the provider of the `aidbox` service; a plugin that is only
@@ -27,11 +28,12 @@ gets no tab because it has no page to show.
   "label": "Labs",         // the tab                     (default: the namespace, capitalised)
   "icon": "ph-flask",      // a Phosphor class            (default: ph-squares-four)
   "description": "…",      // one line                    (default: SKILL.md's frontmatter description)
-  "optional": true         // wait to be asked for        (default: false — mount on sight)
+  "optional": true,        // wait to be asked for        (default: false — mount on sight)
+  "preview": { "files": "$qr_*.json", "fn": "preview" }   // files this plugin renders itself
 }
 ```
 
-Six keys, and five of them have defaults. The description falls back to the
+Seven keys, and six of them have defaults. The description falls back to the
 `description:` a `SKILL.md` already carries, so a plugin that is also a skill
 writes its sentence once.
 
@@ -39,6 +41,14 @@ writes its sentence once.
 every project: it is discovered, listed in the catalogue, and mounted only once
 `workspace.json` names it. `plugins/questionnaire` is one — a FHIR form library
 is not something every project wants a tab for.
+
+`"preview"` claims a kind of file. A `$qr_*.json` is not JSON to a person, it is
+a form, so the file manager stops highlighting it and calls
+`ctx.fns.questionnaire.preview({ path })` instead, showing whatever html comes
+back. The pattern is a glob matched against the file name, or against the path
+inside the project when it contains a slash. Returning `null` hands the file
+back — a malformed form is more useful as JSON with its syntax highlighted than
+as a blank frame — and the first plugin whose pattern matches wins.
 
 ## Where plugins live
 

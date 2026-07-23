@@ -28,7 +28,13 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
 
     const ext = extname(path).toLowerCase();
     const raw = `/filemanager?path=${encodeURIComponent(rel)}&raw=1`;
-    const body = IMG.has(ext)
+    // A plugin may know what this file really is — a Questionnaire is a form,
+    // not JSON. Each says so in its manifest ("preview": { files, fn }); the
+    // first whose pattern matches renders it, and a plugin that returns null
+    // hands the file back to the highlighter.
+    const claimed = await ctx.fns.filemanager.claim({ path: rel });
+    const body = claimed ? claimed
+        : IMG.has(ext)
         ? `<div class="px-6 py-5"><img src="${raw}" class="max-w-full"></div>`
         : info.size > TOO_BIG
             ? `<div class="px-6 py-5 text-text-muted">Too large to show (${size(info.size)}). <a class="text-text-link hover:underline" href="${raw}">Open raw</a></div>`

@@ -31,7 +31,7 @@ export type Root = {
     folder?: string;   // the plugin directory itself — manifest and SKILL.md live here
     label?: string; icon?: string; description?: string; skill?: string | null;
     source?: "core" | "project" | "platform" | "external"; from?: string | null;
-    optional?: boolean; config?: Record<string, any>;
+    optional?: boolean; preview?: { files: string; fn: string } | null; config?: Record<string, any>;
 };
 
 export default async function (ctx: Context, session: Session | null, _opts?: {}): Promise<Root[]> {

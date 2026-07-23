@@ -29,6 +29,7 @@ export default async function (ctx: Context, _session: Session | null, _opts: {}
             fns: mine.filter((e: any) => e.kind === "fn").map((e: any) => dottedName(e)),
             routes,
             provides: mine.filter((e: any) => e.kind === "hook" && e.hookName.startsWith("service.")).map((e: any) => e.hookName.slice("service.".length)),
+            preview: r.preview ?? null,
         };
     });
 

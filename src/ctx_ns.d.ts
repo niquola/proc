@@ -47,13 +47,6 @@ declare global {
             compose: Injected<typeof import("../plugins/aidbox/src/compose").default>;
             writeCompose: Injected<typeof import("../plugins/aidbox/src/writeCompose").default>;
         };
-        app: {
-            patients: {
-                fhir: Injected<typeof import("../../../workspace-template-2/src/patients/fhir").default>;
-                name: Injected<typeof import("../../../workspace-template-2/src/patients/name").default>;
-                search: Injected<typeof import("../../../workspace-template-2/src/patients/search").default>;
-            };
-        };
         chat: {
             answer: Injected<typeof import("./chat/answer").default>;
             bubble: Injected<typeof import("./chat/bubble").default>;
@@ -119,6 +112,7 @@ declare global {
             subscribe: Injected<typeof import("./events/subscribe").default>;
         };
         filemanager: {
+            claim: Injected<typeof import("../plugins/filemanager/src/claim").default>;
             crumbs: Injected<typeof import("../plugins/filemanager/src/crumbs").default>;
             icon: Injected<typeof import("../plugins/filemanager/src/icon").default>;
             list: Injected<typeof import("../plugins/filemanager/src/list").default>;
@@ -142,9 +136,6 @@ declare global {
             match: Injected<typeof import("./http/match").default>;
             middleware: Injected<typeof import("./http/middleware").default>;
             toResponse: Injected<typeof import("./http/toResponse").default>;
-        };
-        labs: {
-            panels: Injected<typeof import("../../../workspace-template-2/.claude/skills/labs/src/panels").default>;
         };
         lifecycle: {
             order: Injected<typeof import("./lifecycle/order").default>;
@@ -208,6 +199,7 @@ declare global {
             generate: Injected<typeof import("../plugins/questionnaire/src/generate").default>;
             load: Injected<typeof import("../plugins/questionnaire/src/load").default>;
             local: Injected<typeof import("../plugins/questionnaire/src/local").default>;
+            preview: Injected<typeof import("../plugins/questionnaire/src/preview").default>;
             render: Injected<typeof import("../plugins/questionnaire/src/render").default>;
             results: Injected<typeof import("../plugins/questionnaire/src/results").default>;
             search: Injected<typeof import("../plugins/questionnaire/src/search").default>;

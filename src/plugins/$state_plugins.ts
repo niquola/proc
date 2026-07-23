@@ -6,6 +6,8 @@
 //   devtool   tab         it answers GET /<namespace>
 //   skill     skill       it ships a SKILL.md
 //   provider  provides    it has a $hook_service.<name>.ts
+//   viewer    preview     its manifest claims a file pattern, and the file manager
+//                         calls the named fn instead of showing text
 export type plugins = Array<{
     namespace: string;
     label: string;
@@ -21,4 +23,5 @@ export type plugins = Array<{
     fns: string[];
     routes: string[];
     provides: string[];
+    preview: { files: string; fn: string } | null;
 }>;
