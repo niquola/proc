@@ -148,14 +148,21 @@ The client refetches the fragment; nothing about the payload travels.
 
 ## Plugins
 
-A directory with `atomic-workspace.json` (`{ namespace?, src?, label?, icon?,
-description? }`) is a plugin, and a plugin is a skill directory: the workspace's
-own live in `plugins/`, the project's in `WORKDIR/.claude/skills/`. It gets a tab
-if it answers `GET /<namespace>`, is a skill if it ships `SKILL.md`.
-`docs/plugins.md` is the guide. Inside, it is ordinary procs code — same file
-names, same `ctx.fns`. See `plugins/filemanager` for the smallest complete
-example and `plugins/aidbox` for one that is also a service provider
-(`$hook_service.aidbox.ts`).
+A directory with `atomic-workspace.json` is a plugin, and a plugin is a skill
+directory: the workspace's own live in `plugins/`, the project's in
+`WORKDIR/.claude/skills/`. Inside, it is ordinary procs code — same file names,
+same `ctx.fns`.
+
+What it *is* comes from what it ships: functions are a library, a
+`GET /<namespace>` route is a tab, a `SKILL.md` is a skill the coding agent
+finds by itself, a `$hook_service.<x>.ts` provides that service, and
+`"preview": { "files": "$qr_*.json", "fn": "preview" }` in the manifest makes it
+the viewer for those files in the file manager. `"optional": true` keeps it in
+the catalogue until `workspace.json` names it.
+
+`docs/plugins.md` is the guide. See `plugins/filemanager` for the smallest
+complete example, `plugins/aidbox` for a service provider, and
+`plugins/questionnaire` for one wearing every face at once.
 
 ## Tests
 

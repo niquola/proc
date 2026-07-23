@@ -50,9 +50,19 @@ a **skill directory**: the project keeps its own in `WORKDIR/.claude/skills/`,
 where the coding agent finds them as skills and the workspace as plugins. What a
 plugin is comes from its files: functions are a library, a `GET /<namespace>`
 route is a tab, a `SKILL.md` is a skill, a `$hook_service.<x>.ts` is a service
-provider. The workspace's own `plugins/` and the project's own skills are always
-on; the global skill dirs are a catalogue named in `workspace.json`, and an
-external is a git repo cloned into `.claude/skills/`. See `docs/plugins.md`. `project/pluginPaths.ts` searches
+provider, and `"preview": { "files": "$qr_*.json", "fn": "preview" }` in the
+manifest makes it the viewer for those files — the file manager calls that
+function instead of highlighting the text, so a Questionnaire opens as a form.
+
+One rule decides mounting, whatever the source: a plugin mounts unless it is
+optional and nobody asked for it. The workspace's own `plugins/` and the
+project's own skills are on by default; a manifest can say `"optional": true`,
+and the global skill dirs are optional by nature — a machine has dozens, a
+project wants three. Whatever is skipped is exactly what the catalogue offers.
+An external is a git repo cloned into `.claude/skills/`. Config travels the same
+manifest: `"plugins": { "aidbox": { "license": … } }` in `workspace.json` reaches
+the plugin through `config.resolve`, layered between `package.json` and env. See
+`docs/plugins.md`. `project/pluginPaths.ts` searches
 the project's own `plugins/` plus every place skills live (`~/.claude/skills`,
 `~/.agent/skills`, `~/.codex/skills`, `<root>/.claude/skills`,
 `<root>/.agents/skills`), deduped by `realpath`; `PLUGIN_PATHS` overrides the
@@ -70,7 +80,14 @@ the UI grows by itself. The older declarative path (`proc.plugins` in
 Shipped plugins: `filemanager` (browse WORKDIR, markdown and syntax-highlighted
 code), `preview` (the app under development in a frame), `services` → namespace
 `processes` (what is running, its logs, restart/stop), `aidbox` (a *provider*,
-no UI — see below).
+no UI — see below), and `questionnaire`, which is `"optional": true` — it ships
+with the workspace but waits to be named in `workspace.json`, because a FHIR form
+library is not something every project wants a tab for.
+
+The manager at `/plugins` is where this is visible and changeable: every mounted
+plugin with a badge per face, what the project declared but has not fetched, and
+the catalogue of what this machine could offer — Turn on / Turn off, which is a
+line in `workspace.json` plus `plugins.reload`, never a restart.
 
 ## Services: declare what you need, not how to run it
 

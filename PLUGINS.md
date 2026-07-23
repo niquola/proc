@@ -1,5 +1,12 @@
 # proc plugins
 
+> This is the **framework's** plugin mechanism: a published package an app
+> declares in its own `package.json`. The **workspace** mounts plugins a second
+> way — a folder with an `atomic-workspace.json`, discovered where skills live,
+> asked for in `WORKDIR/workspace.json`. That is the one the tabs, the manager
+> at `/plugins` and the coding agent use; it is documented in
+> [docs/plugins.md](./docs/plugins.md). Both end up in the same `ctx.fns`.
+
 A plugin is a package (local dir, npm package, or git repo) that contributes functions, routes and types into the host's **one shared `ctx.fns`**, under a namespace it declares. Plugin code is first-class: it uses the same `(ctx, session, opts)` signature and the same file-name conventions, and it calls core fns (and other plugins) through `ctx.fns.*`.
 
 ## Authoring a plugin
