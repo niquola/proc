@@ -43,6 +43,17 @@ declare global {
             trackTiming: Injected<typeof import("./agent/trackTiming").default>;
             writeHelpers: Injected<typeof import("./agent/writeHelpers").default>;
         };
+        aidbox: {
+            compose: Injected<typeof import("../plugins/aidbox/src/compose").default>;
+            writeCompose: Injected<typeof import("../plugins/aidbox/src/writeCompose").default>;
+        };
+        app: {
+            patients: {
+                fhir: Injected<typeof import("../../../workspace-template-2/src/patients/fhir").default>;
+                name: Injected<typeof import("../../../workspace-template-2/src/patients/name").default>;
+                search: Injected<typeof import("../../../workspace-template-2/src/patients/search").default>;
+            };
+        };
         chat: {
             answer: Injected<typeof import("./chat/answer").default>;
             bubble: Injected<typeof import("./chat/bubble").default>;
@@ -239,6 +250,7 @@ declare global {
 
     interface CtxState {
         agent: import("./agent/$state_agent").agent;
+        appRoots: import("./project/$state_appRoots").appRoots;
         forms: import("../plugins/form/src/$state_forms").forms;
         page: import("./page/$state_page").page;
         services: import("./services/$state_services").services;

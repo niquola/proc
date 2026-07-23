@@ -66,6 +66,7 @@ scripts. Ports are assigned per run and interpolated where they are needed.
 | `backoff` | `1` | seconds, doubled per consecutive restart, capped at 30. |
 | `maxRestarts` | `5` | consecutive; then `crashed`, waiting for a human. |
 | `autostart` | `true` | `false` = declared and listed, started on click or by a dependent. |
+| `runtime` | — | `"in-process"` mounts the project's `src/` into this process instead of spawning anything — see below. |
 
 Unknown keys are **provider input**, handed to the hook untouched — that is how
 `"aidbox": { "license": "…" }` works.
@@ -73,6 +74,32 @@ Unknown keys are **provider input**, handed to the hook untouched — that is ho
 `resolve.ts` is the only place defaults live, and the only place a manifest
 fails: a `needs` cycle, a `needs` on something undeclared, two probes on one
 service, `ready.http` without a port, two services publishing the same key.
+
+## An app can run inside the workspace
+
+A service declared `runtime: "in-process"` is not spawned at all: its `src/`
+joins the scan roots under its own namespace and `loadFns` brings it into
+`ctx.fns`. It is a plugin in everything but where it lives.
+
+```jsonc
+{ "services": { "aidbox": {}, "app": { "runtime": "in-process", "needs": ["aidbox"] } } }
+```
+
+`src/patients/search.ts` becomes `ctx.fns.app.patients.search`,
+`src/patients/$route__GET.ts` becomes `GET /app/patients`. There is no port, no
+readiness probe and no process to supervise; an edit is live after `dev.sync`,
+and a file that does not compile fails the mount rather than a request — the
+card goes `crashed` with the error on it.
+
+The one thing the workspace has to do differently: a spawned child is handed the
+shared environment, and an in-process app has no child to hand it to, so the
+workspace adopts it into its own `process.env`. That is what lets the app read
+`AIDBOX_BASE_URL` from `ctx.env` like any other service.
+
+What it buys: one process, instant reload, and the agent can call the app's
+functions directly instead of over HTTP. What it costs: no isolation — a
+crash in app code is a crash of the workspace — one shared dependency tree, and
+it only works for a procs project. Anything else still spawns.
 
 ## The environment
 

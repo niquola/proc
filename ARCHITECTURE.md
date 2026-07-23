@@ -90,6 +90,15 @@ line in the manifest, not a branch in the code. `resolve` is also the only place
 defaults live, and where a manifest that contradicts itself throws — a `needs`
 cycle, a `needs` on nothing, two services publishing the same key.
 
+A service can also declare `runtime: "in-process"`, and then nothing is spawned:
+its `src/` joins the scan roots under its own namespace, so the project's own
+code becomes `ctx.fns.app.*` and its `$route_*` files are served by the workspace
+at `/app/…`. The app is a plugin that happens to live in WORKDIR — no port, no
+readiness, no supervision, an edit live after `dev.sync`, and the agent calling
+its functions directly rather than over HTTP. The price is the absence of
+isolation: an in-process app crashes the workspace with it, so it is a choice a
+project makes in its manifest, not the default.
+
 `services.env` computes the environment: a free port (`Bun.serve({port:0})`) for
 every name in `portEnv`, the resulting address in `urlEnv`, everything a service
 `publish`es, `${NAME}` references resolved — and hands that one environment to

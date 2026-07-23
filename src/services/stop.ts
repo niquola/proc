@@ -20,12 +20,23 @@
 const GRACE_MS = 5_000;
 
 export default async function (ctx: Context, _session: Session | null, opts: { name: string }) {
+    // In-process services are unmounted, not signalled: the namespace leaves the
+    // scan roots and the next loadFns forgets it.
     const service: types.services.Service | undefined = ctx.state.services?.[opts.name];
     if (!service) return;
 
     service.wanted = "down";
     clearTimeout(service.timer);
     service.timer = undefined;
+
+    if (service.spec.runtime === "in-process") {
+        delete ctx.state.appRoots?.[opts.name];
+        delete ctx.state.registry[opts.name];
+        service.ready = false;
+        service.state = "idle";
+        ctx.fns.events.emit({ event: { type: "service", name: opts.name } });
+        return;
+    }
 
     const proc = service.proc;
     if (proc) {

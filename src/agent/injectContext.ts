@@ -26,6 +26,9 @@ function section(ctx: Context): string {
     const services = ctx.fns.services.status({});
     const port = ctx.fns.config.resolve({ module: "http" }).port;
     const app = services.find((s: any) => s.name === "app");
+    // An in-process app has no port and no second REPL: its functions are in
+    // this registry, so the recipes are different ones.
+    const inProcess = services.filter((s: any) => s.runtime === "in-process");
     const env = ctx.state.serviceEnv ?? {};
     // `sh -lc` is how a string cmd runs, not what the manifest says — show the line.
     const command = (cmd: string[] = []) => (cmd[0] === "/bin/sh" ? cmd[2] : cmd.join(" ")) || "external";
@@ -99,7 +102,46 @@ Namespaces: ${Object.keys(ctx.state.registry).sort().map(n => `\`${n}\``).join("
 .workspace/repl 'ctx.fns.project.workdir({})'
 .workspace/repl 'await ctx.fns.services.resolve({})'
 \`\`\`
-${app ? `
+${inProcess.length ? inProcess.map((s: any) => `
+## The app runs in this process (\`ctx.fns.${s.name}.*\`)
+
+\`${s.name}\` is declared \`runtime: "in-process"\`, so there is no child, no port
+and no second REPL: its files under \`WORKDIR/src\` are functions in the registry
+you are already talking to, and its routes are served at \`/${s.name}/…\`.
+
+The directory is both the path and the namespace; the file name is the rest:
+
+| file | is |
+|---|---|
+| \`src/patients/search.ts\` | \`ctx.fns.${s.name}.patients.search({…})\` |
+| \`src/patients/$route__GET.ts\` | \`GET /${s.name}/patients\` |
+| \`src/patients/$route_$id_GET.ts\` | \`GET /${s.name}/patients/:id\` |
+| \`src/$route__GET.ts\` | \`GET /${s.name}\` |
+
+\`\`\`sh
+# what the app already has
+.workspace/repl 'Object.keys(ctx.fns.${s.name} ?? {})'
+
+# call one of its functions — same process, no HTTP
+.workspace/repl 'await ctx.fns.${s.name}.patients.search({ count: 3 })'
+
+# after editing a file: reload it, then verify at once
+.workspace/repl 'await ctx.fns.dev.sync({ rel: "${s.name}/patients/search.ts" })'
+
+# a NEW file or route needs the fuller reload (routes live on the root ctx)
+.workspace/repl <<'EOF'
+let root = ctx; while (Object.getPrototypeOf(root) !== Object.prototype) root = Object.getPrototypeOf(root);
+await root.loadFns({}); await root.genTypes({}); await root.fns.http.loadRoutes({});
+Object.keys(root.routes).filter(r => r.startsWith("/${s.name}"))
+EOF
+
+# render a page without a browser
+.workspace/repl 'await ctx.fns.http.dispatch({ url: "/${s.name}/patients" }).then(r => r.status)'
+\`\`\`
+
+A broken file fails the reload rather than the request: \`dev.sync\` throws with the
+error, and the service card goes \`crashed\` with the reason on it.
+`).join("") : app ? `
 ## App functions (port ${app.port})
 
 \`\`\`sh
@@ -108,14 +150,6 @@ ${app ? `
 
 # the env the workspace injected, as the process sees it
 .workspace/app-repl 'print(ctx.env.AIDBOX_BASE_URL); ctx.env.PORT'
-
-# talk to Aidbox with the credentials it was given
-.workspace/app-repl <<'EOF'
-const r = await fetch(ctx.env.AIDBOX_BASE_URL + "/fhir/Patient?_count=1", {
-  headers: { authorization: "Basic " + btoa(ctx.env.AIDBOX_CLIENT_ID + ":" + ctx.env.AIDBOX_CLIENT_SECRET) },
-});
-({ status: r.status, total: (await r.json()).total })
-EOF
 \`\`\`
 
 Write code to a file first, then load it into the running app — do not paste

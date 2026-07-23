@@ -11,6 +11,7 @@ export type Spec = {
     cmd?: string[];
     url?: string;
     provider?: string;
+    runtime?: "in-process";   // mounted into this process instead of spawned
     dir: string;
     portEnv: string[];
     urlEnv?: string;

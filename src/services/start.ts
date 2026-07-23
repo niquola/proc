@@ -34,6 +34,38 @@ export default async function (ctx: Context, _session: Session | null, opts: { n
     service.state = "starting";
     ctx.fns.events.emit({ event: { type: "service", name } });
 
+    // In-process: the app is this code. Its directory joins the scan roots under
+    // its own namespace and loadFns brings it into ctx.fns — a plugin in
+    // everything but where it lives. Nothing is spawned, so there is no port to
+    // wait for and no process to supervise; a syntax error surfaces here rather
+    // than in a log nobody is reading.
+    if (service.spec.runtime === "in-process") {
+        const dir = `${ctx.fns.project.workdir({})}/src`;
+        // A spawned child is handed the shared environment; an in-process app has
+        // no child to hand it to, so the workspace adopts it. That is what lets
+        // the app read AIDBOX_BASE_URL from ctx.env like any other service.
+        const shared = await ctx.fns.services.env({});
+        Object.assign(process.env, shared);
+        Object.assign(ctx.env, shared);
+        (ctx.state.appRoots ??= {})[name] = dir;
+        try {
+            await ctx.loadFns({});
+            await ctx.fns.http.loadRoutes({});
+        } catch (error: any) {
+            delete ctx.state.appRoots[name];
+            service.state = "crashed";
+            service.error = String(error?.message ?? error);
+            ctx.fns.events.emit({ event: { type: "service", name } });
+            throw error;
+        }
+        service.ready = true;
+        service.state = "running";
+        service.startedAt = Date.now();
+        ctx.fns.log.info({ event: "service.mounted", msg: `${name} mounted from ${dir}`, service: name });
+        ctx.fns.events.emit({ event: { type: "service", name } });
+        return service;
+    }
+
     // External: nothing to run, the address is already published. Marking it
     // ready is what lets dependents through waitReady.
     if (!service.spec.cmd) {

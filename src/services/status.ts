@@ -15,6 +15,7 @@ export default function (ctx: Context, _session: Session | null, _opts?: {}) {
         wanted: service.wanted,
         // Nothing was started for it and nothing can be: it is someone else's.
         external: !service.spec.cmd,
+        runtime: service.spec.runtime,
         cmd: service.spec.cmd,
         needs: service.spec.needs,
         pid: service.pid ?? null,

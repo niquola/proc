@@ -13,7 +13,7 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
 
     return {
         title: "aidbox",
-        main: `<iframe id="aidbox-frame" src="${esc(url)}" class="block h-[calc(100vh-6rem)] w-[calc(100%+3rem)] -m-6 bg-bg-content"></iframe>`,
+        main: `<iframe id="aidbox-frame" src="${esc(url)}" class="block h-[calc(100vh-3rem)] w-[calc(100%+3rem)] -m-6 bg-bg-content"></iframe>`,
     };
 }
 

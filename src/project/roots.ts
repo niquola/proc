@@ -23,6 +23,13 @@ export default async function (ctx: Context, session: Session | null, _opts?: {}
     const out: Root[] = [{ name: "core", dir: coreSrc, namespace: "" }];
     if (appSrc !== coreSrc) out.push({ name: "app", dir: appSrc, namespace: "" });
 
+    // An app declared `runtime: "in-process"` in workspace.json is mounted from
+    // WORKDIR as a namespace of this process — services/start puts the directory
+    // here and calls loadFns. It is a plugin in everything but where it lives.
+    for (const [namespace, dir] of Object.entries(ctx.state.appRoots ?? {})) {
+        out.push({ name: namespace, dir: dir as string, namespace });
+    }
+
     let specs: Array<{ from: string; as?: string }> = [];
     try {
         const pkg = JSON.parse(await Bun.file(projectRoot + "/package.json").text());

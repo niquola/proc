@@ -15,6 +15,9 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
 
     for (const [name, declared] of Object.entries(services ?? {})) {
         let spec: any = declared ?? {};
+        // In-process: the workspace runs this code itself, so there is nothing
+        // to spawn and nobody to ask for a command.
+        if (spec.runtime === "in-process") { specs[name] = fillDefaults(name, { ...spec, ready: {} }); continue; }
         if (!spec.cmd && !spec.url) {
             const provider = spec.provider ?? name;
             const provided: any = await ctx.fns.hooks.first({ name: `service.${provider}`, opts: { name, spec } });
@@ -49,6 +52,7 @@ function fillDefaults(name: string, spec: any): types.services.Spec {
         cmd: typeof spec.cmd === "string" ? ["/bin/sh", "-lc", spec.cmd] : spec.cmd,
         url: spec.url,
         provider: spec.provider,
+        runtime: spec.runtime,
         dir: spec.dir ?? ".",
         portEnv,
         urlEnv: spec.urlEnv,

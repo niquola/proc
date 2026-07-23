@@ -14,7 +14,9 @@ export default async function (ctx: Context, _session: Session | null, _opts?: {
     await Bun.write(`${dir}/repl`, script(port, "the workspace"));
     await chmod(`${dir}/repl`, 0o755);
 
-    if (app?.port) {
+    // An in-process app has no port and no second REPL — the workspace's own is
+    // where its functions live.
+    if (app?.port && app?.runtime !== "in-process") {
         await Bun.write(`${dir}/app-repl`, script(app.port, "the app"));
         await chmod(`${dir}/app-repl`, 0o755);
         written.push(`${dir}/app-repl`);
