@@ -13,10 +13,10 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
     const workdir = ctx.fns.project.workdir({});
     const rel = url.searchParams.get("path") ?? ".";
     const path = resolve(workdir, rel);
-    if (path !== workdir && !path.startsWith(workdir + "/")) return { title: "denied", status: 403, main: `outside workdir: ${esc(rel)}` };
+    if (path !== workdir && !path.startsWith(workdir + "/")) return { title: "denied", status: 403, main: ctx.fns.ui.notice({ text: `outside workdir: ${rel}`, tone: "danger" }) };
 
     const info = await stat(path).catch(() => null);
-    if (!info) return { title: "not found", status: 404, main: `${ctx.fns.filemanager.crumbs({ path: rel })}<div class="mt-4 text-state-danger-fg">Not found: ${esc(rel)}</div>` };
+    if (!info) return { title: "not found", status: 404, main: `${ctx.fns.filemanager.crumbs({ path: rel })}<div class="mt-4">${ctx.fns.ui.notice({ text: `Not found: ${rel}`, tone: "danger" })}</div>` };
 
     if (url.searchParams.get("raw")) {
         if (info.isDirectory()) return new Response("is a directory", { status: 400 });
@@ -45,20 +45,15 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
     return {
         title: basename(path),
         main: `${ctx.fns.filemanager.crumbs({ path: rel })}
-<div class="mt-4 overflow-hidden rounded-md border border-border-subtle">
-  <div class="flex items-center justify-between gap-3 border-b border-border-subtle bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">
-    <span>${size(info.size)}</span>
-    <a ${ctx.fns.ui.attr({ action: "raw", id: rel })} class="text-text-link hover:underline" href="${raw}" target="_blank" rel="noreferrer">Raw</a>
-  </div>
-  ${body}
-</div>`,
+${ctx.fns.ui.box({
+            class: "mt-4",
+            title: size(info.size),
+            right: `<a ${ctx.fns.ui.attr({ action: "raw", id: rel })} class="text-text-link hover:underline" href="${raw}" target="_blank" rel="noreferrer">Raw</a>`,
+            body: `<div class="border-t border-border-subtle">${body}</div>`,
+        })}`,
     };
 }
 
 function size(bytes: number): string {
     return bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1048576).toFixed(1)} MB`;
-}
-
-function esc(s: any): string {
-    return String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]!));
 }

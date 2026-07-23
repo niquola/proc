@@ -8,7 +8,7 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
         return {
             title: "views",
             status: 400,
-            main: `<div class="rounded-md border border-state-danger-border bg-state-danger-bg px-4 py-2 text-ui text-state-danger-fg">${esc(error?.message ?? error)}</div>
+            main: `${ctx.fns.ui.notice({ text: String(error?.message ?? error), tone: "danger" })}
 <a class="mt-4 inline-block text-2xs text-text-link hover:underline" href="/viewdef/view?id=${encodeURIComponent(id)}" hx-get="/viewdef/view?id=${encodeURIComponent(id)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">← ${esc(id)}</a>`,
         };
     }

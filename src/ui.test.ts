@@ -24,6 +24,24 @@ test("every mounted tab names itself with exactly one data-page", async () => {
     }
 });
 
+test("the components carry the markers, so a page built from them cannot forget", () => {
+    const html = ctx.fns.ui.page({
+        page: "demo",
+        title: "Demo",
+        main: ctx.fns.ui.box({
+            title: "1 item",
+            right: ctx.fns.ui.button({ action: "refresh", label: "Refresh", get: "/x" }),
+            body: ctx.fns.ui.row({ entity: "thing", id: "one", status: "draft", href: "/x", cells: [{ role: "name", text: "One" }] })
+                + ctx.fns.ui.form({ form: "search", get: "/x", body: ctx.fns.ui.field({ name: "q" }) }),
+        }),
+    });
+    expect(html.match(/data-[a-z]+="[^"]*"/g)).toEqual([
+        `data-page="demo"`, `data-action="refresh"`,
+        `data-entity="thing"`, `data-id="one"`, `data-status="draft"`, `data-role="name"`,
+        `data-form="search"`, `data-field="q"`,
+    ]);
+});
+
 test("a listing's rows are addressable — entity plus a stable id", async () => {
     const html = await (await ctx.fns.http.dispatch({ url: "/filemanager" })).text();
     expect(html).toContain(`data-entity=`);

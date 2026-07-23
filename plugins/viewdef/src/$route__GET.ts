@@ -4,30 +4,29 @@
 export default async function (ctx: Context, _session: Session, _opts: { req: Request }) {
     const views = await ctx.fns.viewdef.local({});
 
-    const row = (v: { id: string; name: string; resource: string; file: string; columns: number }) => `<a class="flex items-center gap-3 border-t border-border-subtle px-4 py-2.5 hover:bg-bg-tertiary"
-  href="/viewdef/view?id=${encodeURIComponent(v.id)}"
-  hx-get="/viewdef/view?id=${encodeURIComponent(v.id)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true"
-  ${ctx.fns.ui.attr({ entity: "viewdef", id: v.id })}>
-  <span class="min-w-0 flex-1 truncate text-text-link" ${ctx.fns.ui.attr({ role: "name" })}>${esc(v.name)}</span>
-  <span class="w-40 shrink-0 truncate text-2xs text-text-tertiary" ${ctx.fns.ui.attr({ role: "resource" })}>${esc(v.resource)}</span>
-  <span class="w-24 shrink-0 text-2xs text-text-tertiary" ${ctx.fns.ui.attr({ role: "columns" })}>${v.columns} columns</span>
-  <span class="shrink-0 font-mono text-3xs text-text-placeholder" ${ctx.fns.ui.attr({ role: "table" })}>sof.${esc(v.name)}</span>
-</a>`;
+    const rows = views.map(v => ctx.fns.ui.row({
+        entity: "viewdef", id: v.id,
+        href: `/viewdef/view?id=${encodeURIComponent(v.id)}`,
+        cells: [
+            { role: "name", text: v.name, class: "min-w-0 flex-1 truncate text-text-link" },
+            { role: "resource", text: v.resource, class: "w-40 shrink-0 truncate text-2xs text-text-tertiary" },
+            { role: "columns", text: `${v.columns} columns`, class: "w-24 shrink-0 text-2xs text-text-tertiary" },
+            { role: "table", text: `sof.${v.name}`, class: "shrink-0 font-mono text-3xs text-text-placeholder" },
+        ],
+    })).join("");
 
     return {
         title: "views",
-        main: `<section ${ctx.fns.ui.attr({ page: "views" })}>
-<h1 class="text-lg font-semibold">Views</h1>
-<p class="mt-1 text-2xs text-text-tertiary">A SQL-on-FHIR <span class="font-mono">ViewDefinition</span> flattens resources into a table you can query with SQL. The project keeps them as <span class="font-mono">$viewdef_&lt;id&gt;.json</span>; Aidbox materializes each one into the <span class="font-mono">sof</span> schema.</p>
-
-<div class="mt-4 overflow-hidden rounded-md border border-border-subtle">
-  <div class="bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">${views.length} in this project</div>
-  ${views.length ? views.map(row).join("") : `<div class="border-t border-border-subtle px-4 py-3 text-2xs text-text-tertiary">none yet — write <span class="font-mono">$viewdef_&lt;id&gt;.json</span> with { name, resource, select }</div>`}
-</div>
-</section>`,
+        main: ctx.fns.ui.page({
+            page: "views",
+            title: "Views",
+            lead: `A SQL-on-FHIR <span class="font-mono">ViewDefinition</span> flattens resources into a table you can query with SQL. The project keeps them as <span class="font-mono">$viewdef_&lt;id&gt;.json</span>; Aidbox materializes each one into the <span class="font-mono">sof</span> schema.`,
+            main: ctx.fns.ui.box({
+                class: "mt-4",
+                title: `${views.length} in this project`,
+                body: rows,
+                empty: "none yet — write $viewdef_<id>.json with { name, resource, select }",
+            }),
+        }),
     };
-}
-
-function esc(s: any): string {
-    return String(s ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]!));
 }

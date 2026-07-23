@@ -488,4 +488,10 @@ will work. Verbs: `open` (a URL, or an entity whose link is followed), `openTab`
 a pointer to its target and lights it up so the user sees what happened;
 `show:false` turns that off. `page.tour` runs steps with narration as a
 first-class step. **A plugin page must carry its state in its URL and mark its
-markup** — otherwise the agent cannot show it to anyone. Full guide: `docs/ui.md`.
+markup** — otherwise the agent cannot show it to anyone.
+
+Build pages out of `src/ui/` rather than marking markup by hand: `ui.page`
+(the shell that carries `data-page`), `ui.box`, `ui.row` (entity + a role per
+cell), `ui.button` (the action verb), `ui.field`, `ui.form`, `ui.notice`,
+`ui.badge`. The markers are inside them, so a page built this way cannot forget
+them. Full guide: `docs/ui.md`.

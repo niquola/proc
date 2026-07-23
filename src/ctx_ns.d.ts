@@ -235,6 +235,14 @@ declare global {
         };
         ui: {
             attr: Injected<typeof import("./ui/attr").default>;
+            badge: Injected<typeof import("./ui/badge").default>;
+            box: Injected<typeof import("./ui/box").default>;
+            button: Injected<typeof import("./ui/button").default>;
+            field: Injected<typeof import("./ui/field").default>;
+            form: Injected<typeof import("./ui/form").default>;
+            notice: Injected<typeof import("./ui/notice").default>;
+            page: Injected<typeof import("./ui/page").default>;
+            row: Injected<typeof import("./ui/row").default>;
             tabs: Injected<typeof import("./ui/tabs").default>;
         };
         viewdef: {

@@ -20,13 +20,13 @@ export default async function (ctx: Context, _session: Session | null, opts: { d
 
     const parent = relative(workdir, dirname(dir)) || ".";
     const up = here
-        ? `<tr ${ctx.fns.ui.attr({ entity: "dir", id: parent })} class="border-t border-border-subtle first:border-t-0 hover:bg-bg-tertiary">
+        ? `<tr ${ctx.fns.ui.attr({ entity: "dir", id: parent })} class="border-t border-border-subtle hover:bg-bg-tertiary">
       <td class="px-4 py-2" colspan="3">${cell(ctx, { name: "..", path: parent, dir: true })}</td></tr>`
         : "";
 
     // The row carries the entity, not the link: the cells the agent reads
     // (size, modified) are siblings of the name, and it follows the row's href.
-    const rows = entries.map(entry => `<tr ${ctx.fns.ui.attr({ entity: entry.dir ? "dir" : "file", id: entry.path })} class="border-t border-border-subtle first:border-t-0 hover:bg-bg-tertiary">
+    const rows = entries.map(entry => `<tr ${ctx.fns.ui.attr({ entity: entry.dir ? "dir" : "file", id: entry.path })} class="border-t border-border-subtle hover:bg-bg-tertiary">
       <td class="px-4 py-2">${cell(ctx, entry)}</td>
       <td ${ctx.fns.ui.attr({ role: "size" })} class="px-4 py-2 text-right text-2xs tabular-nums text-text-tertiary">${entry.dir ? "" : size(entry.size)}</td>
       <td ${ctx.fns.ui.attr({ role: "modified" })} class="px-4 py-2 text-right text-2xs whitespace-nowrap text-text-tertiary">${ago(entry.mtime)}</td>
@@ -37,12 +37,11 @@ export default async function (ctx: Context, _session: Session | null, opts: { d
     return {
         title: basename(dir) || "/",
         main: `${ctx.fns.filemanager.crumbs({ path: here })}
-<div class="mt-4 overflow-hidden rounded-md border border-border-subtle">
-  <div class="flex items-center justify-between border-b border-border-subtle bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">
-    <span>${entries.length} ${entries.length === 1 ? "item" : "items"}</span>
-  </div>
-  <table class="w-full text-ui">${up}${rows}</table>
-</div>
+${ctx.fns.ui.box({
+            class: "mt-4",
+            title: `${entries.length} ${entries.length === 1 ? "item" : "items"}`,
+            body: `<table class="w-full text-ui">${up}${rows}</table>`,
+        })}
 ${readme ? await preview(ctx, readme) : ""}`,
     };
 }

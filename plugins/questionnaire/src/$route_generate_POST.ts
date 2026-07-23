@@ -5,25 +5,38 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
     const slug = String(form.get("slug") ?? "").trim();
     const id = String(form.get("id") ?? "").trim() || undefined;
     const file = String(form.get("file") ?? "").trim() || undefined;
+    const back = (margin: string) => `<a class="${margin} inline-block text-2xs text-text-link hover:underline" href="/questionnaire" hx-get="/questionnaire" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">← questionnaires</a>`;
     try {
         const made = await ctx.fns.questionnaire.generate({ slug, id, file });
         return {
             title: "added",
-            main: `<h1 class="text-lg font-semibold">${esc(made.slug)} is in the project</h1>
-<div class="mt-4 overflow-hidden rounded-md border border-border-subtle">
-  <div class="bg-bg-tertiary px-4 py-2 text-2xs text-text-tertiary">${made.files.length} files · <span class="font-mono">${esc(made.route)}</span></div>
-  ${made.files.map(f => `<a class="block border-t border-border-subtle px-4 py-2.5 font-mono text-2xs text-text-link hover:bg-bg-tertiary"
-    href="/filemanager?path=${encodeURIComponent(f)}" hx-get="/filemanager?path=${encodeURIComponent(f)}" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">${esc(f)}</a>`).join("")}
-</div>
+            main: ctx.fns.ui.page({
+                page: "generated",
+                title: `${made.slug} is in the project`,
+                main: `
+${ctx.fns.ui.box({
+                    class: "mt-4",
+                    title: `${made.files.length} files`,
+                    right: `<span class="font-mono">${esc(made.route)}</span>`,
+                    body: made.files.map(f => ctx.fns.ui.row({
+                        entity: "file", id: f,
+                        href: `/filemanager?path=${encodeURIComponent(f)}`,
+                        cells: [{ role: "path", text: f, class: "min-w-0 flex-1 truncate font-mono text-2xs text-text-link" }],
+                    })).join(""),
+                })}
 <p class="mt-4 text-2xs text-text-tertiary">The routes are live already — open a patient in the app tab to fill it in.</p>
-<a class="mt-2 inline-block text-2xs text-text-link hover:underline" href="/questionnaire" hx-get="/questionnaire" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">← questionnaires</a>`,
+${back("mt-2")}`,
+            }),
         };
     } catch (error: any) {
         return {
             title: "questionnaires",
             status: 400,
-            main: `<div class="rounded-md border border-state-danger-border bg-state-danger-bg px-4 py-2 text-ui text-state-danger-fg">${esc(error?.message ?? error)}</div>
-<a class="mt-4 inline-block text-2xs text-text-link hover:underline" href="/questionnaire" hx-get="/questionnaire" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">← questionnaires</a>`,
+            main: ctx.fns.ui.page({
+                page: "generated",
+                main: `${ctx.fns.ui.notice({ text: String(error?.message ?? error), tone: "danger" })}
+${back("mt-4")}`,
+            }),
         };
     }
 }

@@ -40,6 +40,47 @@ value wobbles between renders is worse than none — an id must be the same thin
 tomorrow. Put the `id` on the action too when it acts on one row, or nest the
 action inside that row's element; both let `{action, entity, id}` find it.
 
+## The components
+
+Marking markup by hand works, and it is also how a page ends up half-marked: the
+row is an entity but its cells have no roles, the button forgot its verb, the new
+page forgot to name itself. So the markers live inside the pieces every page is
+made of (`src/ui/`), and a page built from them cannot forget them.
+
+| | renders | carries |
+|---|---|---|
+| `ui.page({ page, title, lead, main })` | the page shell | `data-page` — one per page |
+| `ui.box({ title, right, body, empty })` | a bordered box with a grey strip | — |
+| `ui.row({ entity, id, status, href, cells })` | one row of a box | `entity`+`id`+`status`, and a `role` per cell |
+| `ui.button({ action, label, entity, id, post, tone })` | a control | `action` (+ what it acts on) |
+| `ui.field({ name, value, options, placeholder })` | an input or a select | `field`, and the `name` fill uses |
+| `ui.form({ form, body, post, target })` | a form | `form` |
+| `ui.notice({ text, tone })` | what went wrong or worked | `role=error` / `role=notice` |
+| `ui.badge({ text, tone })` | a small fact | — |
+
+```ts
+main: ctx.fns.ui.page({
+    page: "views",
+    title: "Views",
+    lead: `A <span class="font-mono">ViewDefinition</span> flattens resources into a table.`,
+    main: ctx.fns.ui.box({
+        title: `${views.length} in this project`,
+        empty: "none yet",
+        body: views.map(v => ctx.fns.ui.row({
+            entity: "viewdef", id: v.id, href: `/viewdef/view?id=${v.id}`,
+            cells: [
+                { role: "name", text: v.name },
+                { role: "resource", text: v.resource, class: "w-40 shrink-0 text-2xs text-text-tertiary" },
+            ],
+        })).join(""),
+    }),
+})
+```
+
+Use them where the thing is the same thing. A rendered Questionnaire, an iframe,
+a `<table>` of query results, a `<details>` of raw JSON — those are their own
+markup; pass them as `body` or `main` and mark them with `ui.attr` directly.
+
 ## Ask before you act
 
 ```sh

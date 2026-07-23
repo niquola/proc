@@ -132,11 +132,15 @@ each row.
 
 ## Make it drivable
 
-A tab is not finished when it renders. Mark it with `ctx.fns.ui.attr` — one
-`page` on the root, `entity`+`id` on every row, `role` on the cells worth
-reading, `action` on every control, `form` on every form — and the workspace can
-show it to the user: point at a row, explain it, press the button, run a tour.
-Unmarked markup is invisible to that. The convention and the verbs are in
+A tab is not finished when it renders. The workspace shows a page to the user by
+pointing at its `data-*` markers — one `page` on the root, `entity`+`id` on every
+row, `role` on the cells worth reading, `action` on every control, `form` on
+every form — and unmarked markup is invisible to that.
+
+Build the page out of `src/ui/` and the markers come for free: `ui.page`,
+`ui.box`, `ui.row`, `ui.button`, `ui.field`, `ui.form`, `ui.notice`, `ui.badge`.
+Keep the page's state in its URL, too — then showing it to someone is one
+`page.open`. The convention, the components and the verbs are in
 [ui.md](./ui.md); `plugins/viewdef` is the shortest example that has all of it.
 
 ## What the agent gets

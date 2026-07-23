@@ -3,7 +3,7 @@
 // ask completely different things; this is the page where the user picks.
 export default async function (ctx: Context, _session: Session, opts: { req: Request }) {
     const ids = (new URL(opts.req.url).searchParams.getAll("ids").join(",")).split(",").map(s => s.trim()).filter(Boolean).slice(0, 4);
-    if (!ids.length) return { title: "compare", main: `<div class="text-2xs text-text-tertiary" ${ctx.fns.ui.attr({ page: "compare" })}>Tick a few results and press Compare.</div>` };
+    if (!ids.length) return { title: "compare", main: ctx.fns.ui.page({ page: "compare", main: `<div class="text-2xs text-text-tertiary">Tick a few results and press Compare.</div>` }) };
 
     const columns = await Promise.all(ids.map(async id => {
         try {
@@ -17,8 +17,11 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
 
     return {
         title: `compare ${ids.length}`,
-        main: `<section ${ctx.fns.ui.attr({ page: "compare" })}>
-<div class="flex items-baseline justify-between gap-4">
+        // The heading shares its line with the back link, so it stays in `main`
+        // rather than going through the page's own title.
+        main: ctx.fns.ui.page({
+            page: "compare",
+            main: `<div class="flex items-baseline justify-between gap-4">
   <h1 class="text-lg font-semibold">Comparing ${columns.length}</h1>
   <a class="text-2xs text-text-link hover:underline" href="/questionnaire" hx-get="/questionnaire" hx-target="#main" hx-swap="innerHTML" hx-push-url="true">← back</a>
 </div>
@@ -32,8 +35,8 @@ export default async function (ctx: Context, _session: Session, opts: { req: Req
     </div>
     <div class="border-t border-border-subtle px-4 py-5">${c.html}</div>
   </div>`).join("")}
-</div>
-</section>`,
+</div>`,
+        }),
     };
 }
 
